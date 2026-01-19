@@ -330,3 +330,37 @@ body {
   background: #020617;
   color: #e5e7eb;
 }
+/* =====================================================
+   FULL SCREEN TABLE MODE — FINAL FIX
+   ===================================================== */
+
+/* When table slide is active, let app stretch */
+#app:has(.stage.table-mode) {
+  grid-template-rows: 70px 1fr;   /* remove bottom controls space */
+}
+
+/* Force stage to take full remaining height */
+.stage.table-mode {
+  height: calc(100vh - 70px) !important; /* only top bar */
+  display: block !important;
+  overflow: hidden !important;
+}
+
+/* Table container fills stage */
+.stage.table-mode .tableContainer {
+  height: 100%;
+  width: 100%;
+  padding: 16px;
+  display: flex;
+}
+
+/* Table stretches vertically */
+.stage.table-mode .auctionTable {
+  height: 100%;
+}
+
+/* Evenly distribute rows */
+.stage.table-mode .auctionTable tbody tr {
+  height: calc(100% / 10); /* ROWS_PER_PAGE = 10 */
+}
+
