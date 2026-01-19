@@ -572,3 +572,4 @@ function gvizResponseToRows(resp) {
   }
   return out;
 }
+
