@@ -1,4 +1,11 @@
 /**************************************************
+ * HARD RESET TO SETUP MODE (FRESH START)
+ **************************************************/
+if (APP_STAGE !== "RUNNING") {
+  document.body.classList.remove("sheet-linked");
+}
+
+/**************************************************
  * GOOGLE SHEET (DYNAMIC — FROM LINK YOUR DATA)
  **************************************************/
 let MASTER_SHEET_URL = localStorage.getItem("MASTER_SHEET_URL");
@@ -427,5 +434,6 @@ function highlightRow() {
   rows.forEach(r => r.classList.remove("active"));
   if (rows[rowIndex]) rows[rowIndex].classList.add("active");
 }
+
 
 
