@@ -338,4 +338,50 @@ body {
     transform: translateY(0);
   }
 }
+/* =====================================================
+   FORCE START PANEL TO TRUE SCREEN CENTER
+   ===================================================== */
+
+.startScreen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Anchor the card visually to center */
+.startButtons {
+  position: relative;
+  top: 0;
+  transform: translateY(0);
+}
+
+/* Optical centering tweak (important) */
+body.sheet-linked .startButtons {
+  transform: translateY(-10px);
+}
+/* =====================================================
+   TOP BAR CONTROLS — OPTICAL CENTER FIX
+   ===================================================== */
+
+.topbar {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.topControls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Optical vertical correction */
+.topControls button {
+  transform: translateY(1px);
+}
+
+/* Keep hover animation intact */
+.topControls button:hover {
+  transform: translateY(0);
+}
+
 
