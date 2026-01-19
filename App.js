@@ -1,18 +1,9 @@
 /**************************************************
- * SESSION RESET ON NEW VISIT
- * (browser close → reopen = fresh session)
+ * GLOBAL STATE (PERSISTED)
  **************************************************/
-if (!sessionStorage.getItem("ACTIVE_SESSION")) {
-  indexedDB.deleteDatabase("auction_images");
-  sessionStorage.setItem("ACTIVE_SESSION", "1");
-}
-
-/**************************************************
- * GLOBAL STATE
- **************************************************/
-let APP_STAGE = "LINK";
-let MASTER_SHEET_URL = null;
-let GOOGLE_SHEET_CSV = null;
+let APP_STAGE = localStorage.getItem("APP_STAGE") || "LINK";
+let MASTER_SHEET_URL = localStorage.getItem("MASTER_SHEET_URL");
+let GOOGLE_SHEET_CSV = localStorage.getItem("GOOGLE_SHEET_CSV");
 
 /**************************************************
  * CONFIG
@@ -26,7 +17,7 @@ const ROW_HIGHLIGHT_DURATION = 1;
  * RUNTIME STATE
  **************************************************/
 let slides = [];
-let slideIndex = 0;
+let slideIndex = Number(localStorage.getItem("SLIDE_INDEX") || 0);
 let slideTimer = null;
 let paused = false;
 
@@ -40,9 +31,9 @@ let imagesUploaded = false;
 /**************************************************
  * DOM
  **************************************************/
-const startScreen = document.getElementById("startScreen");
 const app = document.getElementById("app");
 const stage = document.querySelector(".stage");
+const counter = document.getElementById("counter");
 
 const linkButtons = document.getElementById("linkButtons");
 const actionButtons = document.getElementById("actionButtons");
@@ -63,13 +54,6 @@ const linkConfirmBtn = document.getElementById("linkConfirmBtn");
 const sheetLinkInput = document.getElementById("sheetLinkInput");
 
 /**************************************************
- * BACK BUTTON
- **************************************************/
-const backBtn = document.createElement("button");
-backBtn.textContent = "⬅ Back";
-backBtn.className = "btn secondary";
-
-/**************************************************
  * IMAGE PICKER
  **************************************************/
 const imagePickerInput = document.createElement("input");
@@ -84,47 +68,48 @@ uploadImagesBtn.textContent = "🖼 Upload Images (Required)";
 uploadImagesBtn.className = "btn primary";
 
 /**************************************************
+ * BACK BUTTON (EXPLICIT RESET)
+ **************************************************/
+const backBtn = document.createElement("button");
+backBtn.textContent = "⬅ Back";
+backBtn.className = "btn secondary";
+
+backBtn.onclick = () => {
+  stopAllTimers();
+  localStorage.clear();
+  location.reload();
+};
+
+/**************************************************
  * INIT UI
  **************************************************/
 function initUI() {
-  startScreen.style.display = "none";
   linkButtons.style.display = "none";
   actionButtons.style.display = "none";
   app.style.display = "none";
 
-  backBtn.remove();
   uploadImagesBtn.remove();
+  backBtn.remove();
 
   if (APP_STAGE === "LINK") {
-    startScreen.style.display = "grid";
     linkButtons.style.display = "flex";
     linkButtons.prepend(uploadImagesBtn);
     linkDataBtn.disabled = !imagesUploaded;
   }
 
   if (APP_STAGE === "READY") {
-    startScreen.style.display = "grid";
     actionButtons.style.display = "flex";
+    actionButtons.prepend(backBtn);
   }
 
   if (APP_STAGE === "RUNNING") {
     app.style.display = "grid";
     document.querySelector(".topControls").prepend(backBtn);
-    loadData();
+    loadData(true);
   }
 }
 
 initUI();
-
-/**************************************************
- * BACK ACTION = FULL RESET
- **************************************************/
-backBtn.onclick = () => {
-  stopAllTimers();
-  indexedDB.deleteDatabase("auction_images");
-  sessionStorage.clear();
-  location.reload();
-};
 
 /**************************************************
  * IMAGE UPLOAD (MANDATORY)
@@ -133,9 +118,9 @@ uploadImagesBtn.onclick = () => imagePickerInput.click();
 
 imagePickerInput.onchange = () => {
   imageMap = {};
-  [...imagePickerInput.files].forEach(f => {
-    const key = f.name.split(".")[0];
-    imageMap[key] = URL.createObjectURL(f);
+  [...imagePickerInput.files].forEach(file => {
+    const key = file.name.split(".")[0];
+    imageMap[key] = URL.createObjectURL(file);
   });
   imagesUploaded = true;
   linkDataBtn.disabled = false;
@@ -143,13 +128,10 @@ imagePickerInput.onchange = () => {
 };
 
 /**************************************************
- * LINK DATA (BLOCKED UNTIL IMAGES)
+ * LINK DATA
  **************************************************/
 linkDataBtn.onclick = () => {
-  if (!imagesUploaded) {
-    alert("Upload images first");
-    return;
-  }
+  if (!imagesUploaded) return;
   warningModal.style.display = "flex";
 };
 
@@ -160,10 +142,14 @@ linkConfirmBtn.onclick = () => {
   if (!match) return alert("Invalid Google Sheet link");
 
   MASTER_SHEET_URL = sheetLinkInput.value;
-  GOOGLE_SHEET_CSV =
-    `https://docs.google.com/spreadsheets/d/${match[1]}/export?format=csv`;
+  GOOGLE_SHEET_CSV = `https://docs.google.com/spreadsheets/d/${match[1]}/export?format=csv`;
+
+  localStorage.setItem("MASTER_SHEET_URL", MASTER_SHEET_URL);
+  localStorage.setItem("GOOGLE_SHEET_CSV", GOOGLE_SHEET_CSV);
 
   APP_STAGE = "READY";
+  localStorage.setItem("APP_STAGE", "READY");
+
   warningModal.style.display = "none";
   initUI();
 };
@@ -175,23 +161,26 @@ openSheetBtn.onclick = () => window.open(MASTER_SHEET_URL, "_blank");
 
 startAuctionBtn.onclick = () => {
   APP_STAGE = "RUNNING";
+  localStorage.setItem("APP_STAGE", "RUNNING");
   initUI();
 };
 
-refreshBtn.onclick = loadData;
+refreshBtn.onclick = () => loadData(false);
 
 /**************************************************
  * LOAD DATA
  **************************************************/
-async function loadData() {
+async function loadData(restore = false) {
   stopAllTimers();
-  const res = await fetch(GOOGLE_SHEET_CSV);
+
+  const res = await fetch(GOOGLE_SHEET_CSV, { cache: "no-store" });
   const rows = parseCSV(await res.text()).filter(
     r => String(r.Status).toLowerCase() === "open"
   );
 
   slides = buildSlides(rows);
-  slideIndex = 0;
+  if (!restore) slideIndex = 0;
+
   playSlide();
 }
 
@@ -201,17 +190,20 @@ async function loadData() {
 function buildSlides(rows) {
   const out = [];
   let count = 0;
+
   for (const r of rows) {
     out.push({ type: "item", record: r, image: imageMap[r.Item] });
     count++;
-    if (count % IMAGES_BEFORE_TABLE === 0)
-      out.push({ type: "table", rows });
+    if (count % IMAGES_BEFORE_TABLE === 0) out.push({ type: "table", rows });
   }
   return out;
 }
 
 function playSlide() {
   stopAllTimers();
+
+  localStorage.setItem("SLIDE_INDEX", slideIndex);
+
   const slide = slides[slideIndex];
   stage.classList.toggle("table-mode", slide.type === "table");
 
@@ -221,11 +213,40 @@ function playSlide() {
   } else {
     playTable(slide.rows);
   }
+
+  counter.textContent = `${slideIndex + 1} / ${slides.length}`;
 }
 
 function nextSlide() {
   slideIndex = (slideIndex + 1) % slides.length;
   playSlide();
+}
+
+prevBtn.onclick = () => {
+  slideIndex = (slideIndex - 1 + slides.length) % slides.length;
+  playSlide();
+};
+nextBtn.onclick = nextSlide;
+
+/**************************************************
+ * IMAGE + INFO PANEL (RESTORED)
+ **************************************************/
+function renderItem(slide) {
+  stage.innerHTML = `
+    <div class="imageWrapper">
+      ${slide.image ? `<img src="${slide.image}">` : `<div class="noImage">No Image</div>`}
+    </div>
+    <div class="infoPanel">
+      ${Object.entries(slide.record).map(([k, v]) => `
+        <div class="block">
+          <div class="label">${k}</div>
+          <div class="value ${k.toLowerCase() === "current bid" ? "currentBid" : ""}">
+            ${v || "-"}
+          </div>
+        </div>
+      `).join("")}
+    </div>
+  `;
 }
 
 /**************************************************
@@ -236,8 +257,12 @@ function playTable(rows) {
     <table class="auctionTable">
       <thead>
         <tr>
-          <th>Item</th><th>Type</th><th>Base</th>
-          <th>Bid</th><th>Bidder</th><th>Status</th>
+          <th>Item</th>
+          <th>Type</th>
+          <th>Base Price</th>
+          <th>Current Bid</th>
+          <th>Bidder</th>
+          <th>Status</th>
         </tr>
       </thead>
       <tbody>
@@ -249,19 +274,11 @@ function playTable(rows) {
             <td>${r["Current Bid"]}</td>
             <td>${r["Name of Bidder"]}</td>
             <td>${r.Status}</td>
-          </tr>`).join("")}
+          </tr>
+        `).join("")}
       </tbody>
-    </table>`;
-}
-
-/**************************************************
- * RENDER ITEM
- **************************************************/
-function renderItem(slide) {
-  stage.innerHTML = `
-    <div class="imageWrapper">
-      ${slide.image ? `<img src="${slide.image}">` : `<div>No Image</div>`}
-    </div>`;
+    </table>
+  `;
 }
 
 /**************************************************
@@ -275,10 +292,10 @@ function stopAllTimers() {
 function parseCSV(csv) {
   const lines = csv.trim().split("\n");
   const headers = lines.shift().split(",");
-  return lines.map(l => {
-    const v = l.split(",");
-    const o = {};
-    headers.forEach((h,i)=>o[h.trim()] = v[i]?.trim() || "");
-    return o;
+  return lines.map(line => {
+    const values = line.split(",");
+    const obj = {};
+    headers.forEach((h, i) => obj[h.trim()] = values[i]?.trim() || "");
+    return obj;
   });
 }
