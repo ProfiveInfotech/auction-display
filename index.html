@@ -1,71 +1,93 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Auction Display</title>
-
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <title>Live Auction</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
 </head>
-
 <body>
 
-<!-- ================= LINK STAGE ================= -->
-<div id="linkButtons" class="centerPanel">
-    <h1>Link Your Data</h1>
+<!-- ===== START SCREEN ===== -->
+<div id="startScreen">
 
-    <!-- Upload Images button injected by app.js -->
-    <button id="linkDataBtn" class="btn primary" disabled>
-        🔗 Link Google Sheet
+  <div class="startButtons" id="linkButtons">
+    <button id="linkDataBtn" class="btn primary">
+      🔗 Link Your Data
     </button>
-</div>
+  </div>
 
-<!-- ================= READY STAGE ================= -->
-<div id="actionButtons" class="centerPanel">
-    <h1>Ready to Start</h1>
-
+  <div class="startButtons" id="actionButtons" style="display:none;">
     <button id="openSheetBtn" class="btn secondary">
-        📄 Open Master Sheet
+      📊 Open Master Data
     </button>
 
     <button id="startAuctionBtn" class="btn primary">
-        ▶ Start Auction
+      ▶ Start Auction
     </button>
+  </div>
+
 </div>
 
-<!-- ================= RUNNING STAGE ================= -->
-<div id="app">
+<!-- ===== MAIN APP ===== -->
+<div id="app" style="display:none;">
+  <header class="topbar">
+    <h1 class="liveHeader">
+      <span class="liveIndicator">
+        <span class="liveDot"></span>
+        <span class="liveRing"></span>
+      </span>
+      Live Auction
+    </h1>
+
     <div class="topControls">
-        <button onclick="prevSlide()">⏮ Prev</button>
-        <button onclick="togglePause()">⏯ Pause</button>
-        <button onclick="nextSlide()">⏭ Next</button>
-        <button onclick="location.reload()">🔄 Refresh</button>
-
-        <div id="counter">0 / 0</div>
+      <button id="refreshBtn">🔄 Refresh</button>
+      <button id="pauseBtn">⏸ Pause</button>
+      <button id="resumeBtn" style="display:none;">▶ Resume</button>
     </div>
+  </header>
 
-    <div class="stage"></div>
+  <main class="stage"></main>
+
+  <div class="controls">
+    <button id="prevBtn">◀ Prev</button>
+    <button id="nextBtn">Next ▶</button>
+  </div>
+
+  <div id="counter" class="slideCounter"></div>
 </div>
 
-<!-- ================= WARNING MODAL ================= -->
-<div id="warningModal" class="modal">
-    <div class="modalBox">
-        <h2>Link Google Sheet</h2>
+<!-- ===== LINK GOOGLE SHEET MODAL ===== -->
+<div id="warningModal" class="warningOverlay" style="display:none;">
+  <div class="warningBox">
 
-        <input
-            id="sheetLinkInput"
-            type="text"
-            placeholder="Paste Google Sheet link here"
-        >
+    <div class="warningTitle">🔗 Link Google Sheet</div>
 
-        <div class="modalActions">
-            <button id="warningOkBtn" class="btn secondary">Cancel</button>
-            <button id="linkConfirmBtn" class="btn primary">Confirm</button>
-        </div>
+    <div class="warningText">
+      Paste your Google Sheet link below.<br />
+      We will safely extract the Sheet ID.
     </div>
+
+    <input
+      id="sheetLinkInput"
+      class="sheetInput"
+      type="text"
+      placeholder="https://docs.google.com/spreadsheets/d/..."
+    />
+
+    <div class="modalActions">
+      <button id="linkConfirmBtn" class="btn primary">
+        ✅ Link Data
+      </button>
+      <button id="warningOkBtn" class="btn secondary">
+        Cancel
+      </button>
+    </div>
+
+  </div>
 </div>
 
-<!-- ================= SCRIPT ================= -->
 <script src="app.js"></script>
-
 </body>
 </html>
