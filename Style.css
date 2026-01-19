@@ -145,15 +145,30 @@ body {
   border-radius: 8px;
 }
 
-/* ================= START SCREEN (FIXED) ================= */
+/* ================= START SCREEN ================= */
 
-#startScreen {
+.startScreen {
   position: fixed;
   inset: 0;
   display: grid;
   place-items: center;
   background: radial-gradient(circle at top, #020617, #000);
   z-index: 1000;
+}
+
+.startCard {
+  background: linear-gradient(180deg, #020617, #01040a);
+  border: 2px solid #facc15;
+  border-radius: 20px;
+  padding: 50px 70px;
+  text-align: center;
+}
+
+.startTitle {
+  margin: 0;
+  font-size: 2.6rem;
+  font-weight: 900;
+  color: #facc15;
 }
 
 .startButtons {
@@ -185,7 +200,9 @@ body {
   border: 1px solid #334155;
 }
 
-/* ================= TABLE SYSTEM ================= */
+/* ======================================================
+   ✅ CLEAN TABLE SYSTEM (NEW – SIMPLE & FINAL)
+   ====================================================== */
 
 .tableContainer {
   width: 100%;
@@ -196,9 +213,18 @@ body {
 
 .auctionTable {
   width: 100%;
+  height: 100%;
   border-collapse: collapse;
   table-layout: fixed;
   font-size: 0.8rem;
+}
+
+.auctionTable thead th {
+  color: var(--gold);
+  border-bottom: 1px solid var(--gold);
+  padding: 6px 4px;
+  text-align: center;
+  font-weight: 700;
 }
 
 .auctionTable tbody td {
@@ -208,19 +234,9 @@ body {
   color: var(--text);
   white-space: nowrap;
 }
-
-/* ================= ROW HIGHLIGHT (FINAL FIX) ================= */
-
-.stage.table-mode .auctionTable tbody tr.active {
-  background: rgba(250, 204, 21, 0.35) !important;
-  box-shadow: inset 0 0 0 2px #facc15;
-}
-
-.stage.table-mode .auctionTable tbody tr.active td {
-  font-weight: 800;
-}
-
-/* ================= TOP CONTROLS ================= */
+/* =========================================================
+   TOP BAR BUTTON STYLE FIX (REFRESH / PAUSE / RESUME)
+   ========================================================= */
 
 .topControls {
   display: flex;
@@ -229,17 +245,144 @@ body {
 }
 
 .topControls button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
   background: linear-gradient(135deg, #1f2937, #020617);
   color: #e5e7eb;
+
   border: 1px solid #374151;
   border-radius: 8px;
+
   padding: 8px 14px;
   font-size: 0.9rem;
   font-weight: 600;
+
   cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
-/* ================= LIVE INDICATOR ================= */
+.topControls button:hover {
+  background: linear-gradient(135deg, #374151, #020617);
+  border-color: #facc15;
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.25);
+  transform: translateY(-1px);
+}
+
+.topControls button:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+/* =========================================================
+   FINAL CLEAR TABLE RESET – SIMPLE & READABLE
+   ========================================================= */
+
+/* Force table mode to be simple */
+.stage.table-mode {
+  display: block !important;
+  overflow: hidden !important;
+}
+
+/* Simple container – no glow, no centering */
+.stage.table-mode .tableContainer,
+.stage.table-mode .tableFullScreen {
+  width: 100% !important;
+  height: 100% !important;
+  padding: 10px !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Plain table */
+.stage.table-mode table,
+.stage.table-mode .auctionTable {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  table-layout: fixed !important;
+  font-size: 0.8rem !important;
+  background: transparent !important;
+  transform: none !important;
+}
+
+/* Header – clean and sharp */
+.stage.table-mode thead th {
+  padding: 6px 4px !important;
+  color: #facc15 !important;
+  font-weight: 700 !important;
+  border-bottom: 1px solid #facc15 !important;
+  text-align: center !important;
+  background: transparent !important;
+}
+
+/* Body cells – dense */
+.stage.table-mode tbody td {
+  padding: 4px 4px !important;
+  border-bottom: 1px solid #1e293b !important;
+  color: #e5e7eb !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+}
+
+/* Remove ALL row effects */
+.stage.table-mode tbody tr {
+  background: transparent !important;
+  animation: none !important;
+  box-shadow: none !important;
+}
+
+/* Kill hover, glow, active states */
+.stage.table-mode tbody tr:hover,
+.stage.table-mode tbody tr.active {
+  background: transparent !important;
+}
+/* =========================================================
+   ALLOW TABLE TO USE FULL VIEWPORT HEIGHT
+   ========================================================= */
+
+/* When table is visible, remove stage height restriction */
+.stage.table-mode {
+  height: auto !important;
+  min-height: calc(100vh - 70px) !important; /* keep top bar */
+  overflow: visible !important;
+}
+
+/* Allow app to grow */
+#app:has(.stage.table-mode) {
+  grid-template-rows: 70px auto 80px;
+}
+/* =====================================================
+   TABLE ROW HIGHLIGHT — GUARANTEED VISIBILITY
+   ===================================================== */
+
+.auctionTable tbody tr.active {
+  background: rgba(250, 204, 21, 0.25) !important;
+  box-shadow: inset 0 0 0 2px #facc15;
+  color: #fff;
+}
+
+.auctionTable tbody tr.active td {
+  font-weight: 800;
+}
+/* =====================================================
+   COUNTER SIZE FIX (TABLE MODE)
+   ===================================================== */
+
+.stage.table-mode ~ .slideCounter,
+.slideCounter {
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  opacity: 0.85;
+}
+/* =====================================================
+   LIVE BROADCAST INDICATOR
+   ===================================================== */
 
 .liveHeader {
   display: flex;
@@ -247,20 +390,24 @@ body {
   gap: 14px;
 }
 
+/* Container */
 .liveIndicator {
   position: relative;
   width: 14px;
   height: 14px;
 }
 
+/* Solid green dot */
 .liveDot {
   position: absolute;
   inset: 0;
-  background: #22c55e;
+  background: #22c55e; /* green */
   border-radius: 50%;
+  z-index: 2;
   box-shadow: 0 0 6px rgba(34, 197, 94, 0.8);
 }
 
+/* Pulsing ring */
 .liveRing {
   position: absolute;
   inset: -6px;
@@ -269,28 +416,78 @@ body {
   animation: livePulse 1.6s ease-out infinite;
 }
 
+/* Pulse animation */
 @keyframes livePulse {
-  0% { transform: scale(0.4); opacity: 1; }
-  70% { transform: scale(1.2); opacity: 0; }
-  100% { opacity: 0; }
+  0% {
+    transform: scale(0.4);
+    opacity: 1;
+  }
+  70% {
+    transform: scale(1.2);
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
 }
+/* =====================================================
+   LINK YOUR DATA — START SCREEN
+   ===================================================== */
 
-/* ================= COUNTDOWN ================= */
-
-.countdownTimer {
+/* Center the start buttons container */
+#linkButtons,
+#actionButtons {
   position: fixed;
-  bottom: 90px;
-  right: 30px;
-  font-size: 3rem;
-  font-weight: 900;
-  color: #facc15;
-  background: rgba(0,0,0,0.6);
-  padding: 12px 22px;
-  border-radius: 16px;
-  display: none;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  background: radial-gradient(circle at top, #020617, #000);
+  z-index: 1000;
 }
 
-/* ================= MODAL ================= */
+/* Primary Link Button */
+#linkDataBtn {
+  min-width: 260px;
+  padding: 18px 36px;
+  font-size: 1.15rem;
+  font-weight: 800;
+  border-radius: 14px;
+  cursor: pointer;
+  border: none;
+  color: #020617;
+
+  background: linear-gradient(135deg, #facc15, #eab308);
+  box-shadow:
+    0 0 25px rgba(250, 204, 21, 0.45),
+    0 25px 60px rgba(0,0,0,0.6);
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+/* Hover effect */
+#linkDataBtn:hover {
+  transform: scale(1.08);
+  box-shadow:
+    0 0 35px rgba(250, 204, 21, 0.75),
+    0 35px 80px rgba(0,0,0,0.8);
+}
+
+/* Click feedback */
+#linkDataBtn:active {
+  transform: scale(1.02);
+}
+
+/* Secondary buttons spacing polish */
+#actionButtons .btn {
+  min-width: 220px;
+}
+/* =====================================================
+   CUSTOM WARNING MODAL (REPLACES alert())
+   ===================================================== */
 
 .warningOverlay {
   position: fixed;
@@ -309,58 +506,49 @@ body {
   padding: 36px 42px;
   min-width: 360px;
   text-align: center;
+  box-shadow:
+    0 0 30px rgba(250,204,21,0.35),
+    0 40px 120px rgba(0,0,0,0.9);
 }
 
 .warningTitle {
   font-size: 1.4rem;
   font-weight: 900;
   color: #facc15;
+  margin-bottom: 14px;
 }
 
 .warningText {
+  font-size: 1rem;
   color: #e5e7eb;
-  margin: 18px 0;
+  margin-bottom: 26px;
+  line-height: 1.4;
 }
+/* ================= LINK INPUT ================= */
 
 .sheetInput {
   width: 100%;
+  margin: 20px 0 26px;
   padding: 14px 16px;
   border-radius: 12px;
   border: 1px solid #334155;
   background: #020617;
   color: #e5e7eb;
-}
-/* =====================================================
-   FULL SCREEN TABLE MODE — FINAL FIX
-   ===================================================== */
-
-/* When table slide is active, let app stretch */
-#app:has(.stage.table-mode) {
-  grid-template-rows: 70px 1fr;   /* remove bottom controls space */
+  font-size: 0.95rem;
 }
 
-/* Force stage to take full remaining height */
-.stage.table-mode {
-  height: calc(100vh - 70px) !important; /* only top bar */
-  display: block !important;
-  overflow: hidden !important;
+.sheetInput::placeholder {
+  color: #64748b;
 }
 
-/* Table container fills stage */
-.stage.table-mode .tableContainer {
-  height: 100%;
-  width: 100%;
-  padding: 16px;
+.sheetInput:focus {
+  outline: none;
+  border-color: #facc15;
+  box-shadow: 0 0 0 2px rgba(250,204,21,0.25);
+}
+
+.modalActions {
   display: flex;
+  gap: 16px;
+  justify-content: center;
 }
-
-/* Table stretches vertically */
-.stage.table-mode .auctionTable {
-  height: 100%;
-}
-
-/* Evenly distribute rows */
-.stage.table-mode .auctionTable tbody tr {
-  height: calc(100% / 10); /* ROWS_PER_PAGE = 10 */
-}
-
