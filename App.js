@@ -82,30 +82,29 @@ async function loadImages() {
 /**************************************************
  * DOM
  **************************************************/
+const startScreen = document.getElementById("startScreen");
 const app = document.getElementById("app");
 const stage = document.querySelector(".stage");
 const counter = document.getElementById("counter");
 
-const linkButtons = document.getElementById("linkButtons");
-const actionButtons = document.getElementById("actionButtons");
-
+const uploadImagesBtn = document.getElementById("uploadImagesBtn");
 const linkDataBtn = document.getElementById("linkDataBtn");
-const openSheetBtn = document.getElementById("openSheetBtn");
 const startAuctionBtn = document.getElementById("startAuctionBtn");
 
+const backBtn = document.getElementById("backBtn");
+const refreshBtn = document.getElementById("refreshBtn");
 const pauseBtn = document.getElementById("pauseBtn");
 const resumeBtn = document.getElementById("resumeBtn");
-const refreshBtn = document.getElementById("refreshBtn");
 const prevBtn = document.getElementById("prevBtn");
 const nextBtn = document.getElementById("nextBtn");
 
-const warningModal = document.getElementById("warningModal");
-const warningOkBtn = document.getElementById("warningOkBtn");
-const linkConfirmBtn = document.getElementById("linkConfirmBtn");
+const sheetModal = document.getElementById("sheetModal");
 const sheetLinkInput = document.getElementById("sheetLinkInput");
+const confirmSheetBtn = document.getElementById("confirmSheetBtn");
+const cancelSheetBtn = document.getElementById("cancelSheetBtn");
 
 /**************************************************
- * IMAGE PICKER (FOLDER)
+ * IMAGE PICKER
  **************************************************/
 const picker = document.createElement("input");
 picker.type = "file";
@@ -114,45 +113,24 @@ picker.multiple = true;
 picker.style.display = "none";
 document.body.appendChild(picker);
 
-const uploadBtn = document.createElement("button");
-uploadBtn.textContent = "🖼 Upload Images";
-uploadBtn.className = "btn secondary";
-uploadBtn.style.marginRight = "12px";
-
 /**************************************************
- * BACK BUTTON
- **************************************************/
-const backBtn = document.createElement("button");
-backBtn.textContent = "⬅ Back";
-backBtn.className = "btn secondary";
-backBtn.style.marginRight = "12px";
-
-/**************************************************
- * INIT UI
+ * INIT UI (STEP A FIX)
  **************************************************/
 async function initUI() {
-  linkButtons.style.display = "none";
-  actionButtons.style.display = "none";
+  startScreen.style.display = "block";
   app.style.display = "none";
-
-  backBtn.remove();
-  uploadBtn.remove();
 
   imageMap = await loadImages();
 
-  if (APP_STAGE === "LINK") {
-    linkButtons.style.display = "flex";
-    linkButtons.prepend(uploadBtn);
-  }
+  const hasImages = Object.keys(imageMap).length > 0;
+  const hasSheet = Boolean(GOOGLE_SHEET_CSV);
 
-  if (APP_STAGE === "READY" && MASTER_SHEET_URL && GOOGLE_SHEET_CSV) {
-    actionButtons.style.display = "flex";
-    actionButtons.prepend(backBtn);
-  }
+  linkDataBtn.disabled = !hasImages;
+  startAuctionBtn.disabled = !(hasImages && hasSheet);
 
-  if (APP_STAGE === "RUNNING" && GOOGLE_SHEET_CSV) {
+  if (APP_STAGE === "RUNNING") {
+    startScreen.style.display = "none";
     app.style.display = "grid";
-    document.querySelector(".topControls").prepend(backBtn);
     loadData();
   }
 }
@@ -160,50 +138,31 @@ async function initUI() {
 initUI();
 
 /**************************************************
- * IMAGE UPLOAD
+ * STEP 1 — UPLOAD IMAGES
  **************************************************/
-uploadBtn.onclick = () => picker.click();
+uploadImagesBtn.onclick = () => picker.click();
 
 picker.onchange = async () => {
   await saveImages([...picker.files]);
   imageMap = await loadImages();
-  alert(`Images loaded: ${Object.keys(imageMap).length}`);
+  linkDataBtn.disabled = false;
+  alert(`Images uploaded: ${Object.keys(imageMap).length}`);
 };
 
 /**************************************************
- * BACK ACTION
- **************************************************/
-backBtn.onclick = () => {
-  stopAllTimers();
-  stopBidFlicker();
-  paused = false;
-  APP_STAGE = "LINK";
-  localStorage.setItem("APP_STAGE", "LINK");
-  initUI();
-};
-
-/**************************************************
- * MODAL
- **************************************************/
-warningOkBtn.onclick = () => {
-  warningModal.style.display = "none";
-};
-
-/**************************************************
- * LINK DATA
+ * STEP 2 — LINK SHEET
  **************************************************/
 linkDataBtn.onclick = () => {
   sheetLinkInput.value = MASTER_SHEET_URL || "";
-  warningModal.style.display = "flex";
+  sheetModal.style.display = "flex";
 };
 
-linkConfirmBtn.onclick = async () => {
-  const url = sheetLinkInput.value.trim();
-  if (!url.includes("docs.google.com/spreadsheets")) {
-    alert("Invalid Google Sheet link");
-    return;
-  }
+cancelSheetBtn.onclick = () => {
+  sheetModal.style.display = "none";
+};
 
+confirmSheetBtn.onclick = () => {
+  const url = sheetLinkInput.value.trim();
   const m = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
   if (!m) {
     alert("Invalid Google Sheet link");
@@ -214,26 +173,28 @@ linkConfirmBtn.onclick = async () => {
   GOOGLE_SHEET_CSV =
     `https://docs.google.com/spreadsheets/d/${m[1]}/export?format=csv`;
 
-  APP_STAGE = "READY";
-
-  localStorage.setItem("MASTER_SHEET_URL", url);
+  localStorage.setItem("MASTER_SHEET_URL", MASTER_SHEET_URL);
   localStorage.setItem("GOOGLE_SHEET_CSV", GOOGLE_SHEET_CSV);
-  localStorage.setItem("APP_STAGE", "READY");
 
-  warningModal.style.display = "none";
-  initUI();
+  sheetModal.style.display = "none";
+  startAuctionBtn.disabled = false;
 };
 
 /**************************************************
- * START ACTIONS
+ * STEP 3 — START AUCTION
  **************************************************/
-openSheetBtn.onclick = () => {
-  if (MASTER_SHEET_URL) window.open(MASTER_SHEET_URL, "_blank");
-};
-
 startAuctionBtn.onclick = () => {
   APP_STAGE = "RUNNING";
   localStorage.setItem("APP_STAGE", "RUNNING");
+  initUI();
+};
+
+backBtn.onclick = () => {
+  stopAllTimers();
+  stopBidFlicker();
+  paused = false;
+  APP_STAGE = "LINK";
+  localStorage.setItem("APP_STAGE", "LINK");
   initUI();
 };
 
