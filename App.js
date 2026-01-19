@@ -1,9 +1,15 @@
 /**************************************************
- * GOOGLE SHEET
+ * SAFE BOOT RULE
+ * Never resume slideshow on page reload
+ **************************************************/
+localStorage.removeItem("APP_STAGE");
+
+/**************************************************
+ * GLOBAL STATE
  **************************************************/
 let MASTER_SHEET_URL = localStorage.getItem("MASTER_SHEET_URL");
 let GOOGLE_SHEET_CSV = localStorage.getItem("GOOGLE_SHEET_CSV");
-let APP_STAGE = localStorage.getItem("APP_STAGE") || "LINK";
+let APP_STAGE = "LINK";
 
 /**************************************************
  * CONFIG
@@ -14,7 +20,7 @@ const ROWS_PER_PAGE = 10;
 const ROW_HIGHLIGHT_DURATION = 1;
 
 /**************************************************
- * STATE
+ * RUNTIME STATE
  **************************************************/
 let slides = [];
 let slideIndex = 0;
@@ -30,7 +36,11 @@ let rowTimer = null;
 let bidFlickerTimer = null;
 let bidFlickerState = false;
 
-let imageMap = {}; // Item -> objectURL
+/**************************************************
+ * IMAGE STATE (PERSISTENT)
+ **************************************************/
+let imageMap = {}; // ItemCode -> objectURL
+let db;
 
 /**************************************************
  * DOM
@@ -60,6 +70,14 @@ const linkConfirmBtn = document.getElementById("linkConfirmBtn");
 const sheetLinkInput = document.getElementById("sheetLinkInput");
 
 /**************************************************
+ * BACK BUTTON
+ **************************************************/
+const backBtn = document.createElement("button");
+backBtn.textContent = "⬅ Back";
+backBtn.className = "btn secondary";
+backBtn.style.marginRight = "12px";
+
+/**************************************************
  * IMAGE PICKER
  **************************************************/
 const imagePickerInput = document.createElement("input");
@@ -76,8 +94,6 @@ selectImagesBtn.className = "btn secondary";
 /**************************************************
  * INDEXED DB (IMAGE PERSISTENCE)
  **************************************************/
-let db;
-
 function initDB() {
   return new Promise(resolve => {
     const req = indexedDB.open("auction_images", 1);
@@ -123,7 +139,8 @@ async function initUI() {
   actionButtons.style.display = "none";
   app.style.display = "none";
 
-  if (selectImagesBtn.parentNode) selectImagesBtn.remove();
+  backBtn.remove();
+  selectImagesBtn.remove();
 
   if (APP_STAGE === "LINK") {
     startScreen.style.display = "grid";
@@ -137,8 +154,8 @@ async function initUI() {
   }
 
   if (APP_STAGE === "RUNNING") {
-    startScreen.style.display = "none";
     app.style.display = "grid";
+    document.querySelector(".topControls").prepend(backBtn);
     loadData();
   }
 }
@@ -146,7 +163,18 @@ async function initUI() {
 initUI();
 
 /**************************************************
- * LINK DATA
+ * BACK ACTION
+ **************************************************/
+backBtn.onclick = () => {
+  stopAllTimers();
+  stopBidFlicker();
+  paused = false;
+  APP_STAGE = "LINK";
+  initUI();
+};
+
+/**************************************************
+ * LINK DATA FLOW
  **************************************************/
 linkDataBtn.onclick = () => {
   sheetLinkInput.value = MASTER_SHEET_URL || "";
@@ -158,24 +186,24 @@ warningOkBtn.onclick = () => {
 };
 
 linkConfirmBtn.onclick = async () => {
-  const match = sheetLinkInput.value.match(/\/d\/([a-zA-Z0-9-_]+)/);
+  const url = sheetLinkInput.value.trim();
+  const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
   if (!match) return alert("Invalid Google Sheet link");
 
-  MASTER_SHEET_URL = sheetLinkInput.value;
+  MASTER_SHEET_URL = url;
   GOOGLE_SHEET_CSV =
     `https://docs.google.com/spreadsheets/d/${match[1]}/export?format=csv`;
 
   localStorage.setItem("MASTER_SHEET_URL", MASTER_SHEET_URL);
   localStorage.setItem("GOOGLE_SHEET_CSV", GOOGLE_SHEET_CSV);
-  localStorage.setItem("APP_STAGE", "READY");
-  APP_STAGE = "READY";
 
+  APP_STAGE = "READY";
   warningModal.style.display = "none";
   initUI();
 };
 
 /**************************************************
- * IMAGE LOAD + PERSIST
+ * IMAGE LOAD
  **************************************************/
 selectImagesBtn.onclick = () => imagePickerInput.click();
 
@@ -190,13 +218,14 @@ imagePickerInput.onchange = () => {
 };
 
 /**************************************************
- * ACTIONS
+ * ACTION BUTTONS
  **************************************************/
-openSheetBtn.onclick = () => window.open(MASTER_SHEET_URL, "_blank");
+openSheetBtn.onclick = () => {
+  if (MASTER_SHEET_URL) window.open(MASTER_SHEET_URL, "_blank");
+};
 
 startAuctionBtn.onclick = () => {
   APP_STAGE = "RUNNING";
-  localStorage.setItem("APP_STAGE", "RUNNING");
   initUI();
 };
 
@@ -225,7 +254,7 @@ async function loadData() {
 }
 
 /**************************************************
- * SLIDES
+ * SLIDE BUILD
  **************************************************/
 function buildSlides(rows) {
   const out = [];
@@ -234,6 +263,7 @@ function buildSlides(rows) {
   for (const r of rows) {
     out.push({ type: "item", record: r, image: imageMap[r.Item] });
     count++;
+
     if (count % IMAGES_BEFORE_TABLE === 0) {
       out.push({ type: "table", rows });
     }
@@ -242,7 +272,7 @@ function buildSlides(rows) {
 }
 
 /**************************************************
- * PLAYER
+ * SLIDE PLAYER
  **************************************************/
 function playSlide() {
   stopAllTimers();
@@ -282,7 +312,7 @@ function startCountdown(seconds) {
 }
 
 /**************************************************
- * TABLE
+ * TABLE LOGIC
  **************************************************/
 function playTable(rows) {
   tablePages = [];
@@ -310,8 +340,24 @@ function playTablePage() {
 }
 
 /**************************************************
- * RENDER
+ * RENDERING
  **************************************************/
+function renderItem(slide) {
+  stage.innerHTML = `
+    <div class="imageWrapper">
+      ${slide.image ? `<img src="${slide.image}">` : `<div class="noImage">Image not found</div>`}
+    </div>
+    <div class="infoPanel">
+      ${Object.entries(slide.record).map(([k,v]) => `
+        <div class="block">
+          <div class="label">${k}</div>
+          <div class="value ${k.toLowerCase()==="current bid"?"currentBid":""}">
+            ${v || "-"}
+          </div>
+        </div>`).join("")}
+    </div>`;
+}
+
 function drawTablePage() {
   stage.innerHTML = `
     <div class="tableContainer">
@@ -341,22 +387,6 @@ function drawTablePage() {
     </div>`;
 }
 
-function renderItem(slide) {
-  stage.innerHTML = `
-    <div class="imageWrapper">
-      ${slide.image ? `<img src="${slide.image}">` : `<div class="noImage">Image not found</div>`}
-    </div>
-    <div class="infoPanel">
-      ${Object.entries(slide.record).map(([k,v]) => `
-        <div class="block">
-          <div class="label">${k}</div>
-          <div class="value ${k.toLowerCase()==="current bid"?"currentBid":""}">
-            ${v || "-"}
-          </div>
-        </div>`).join("")}
-    </div>`;
-}
-
 /**************************************************
  * NAVIGATION
  **************************************************/
@@ -364,10 +394,12 @@ function nextSlide() {
   slideIndex = (slideIndex + 1) % slides.length;
   playSlide();
 }
+
 function prevSlide() {
   slideIndex = (slideIndex - 1 + slides.length) % slides.length;
   playSlide();
 }
+
 prevBtn.onclick = prevSlide;
 nextBtn.onclick = nextSlide;
 
