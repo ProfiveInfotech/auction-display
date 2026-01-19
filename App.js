@@ -116,6 +116,16 @@ picker.multiple = true;
 picker.style.display = "none";
 document.body.appendChild(picker);
 
+function showSetupStage() {
+  setupStage.style.display = "flex";
+  actionStage.style.display = "none";
+}
+
+function showActionStage() {
+  setupStage.style.display = "none";
+  actionStage.style.display = "flex";
+}
+
 /**************************************************
  * INIT UI (STEP A FIX)
  **************************************************/
@@ -131,6 +141,11 @@ async function initUI() {
   linkDataBtn.disabled = !hasImages;
   startAuctionBtn.disabled = !(hasImages && hasSheet);
 
+  if (hasImages && hasSheet) {
+  showActionStage();
+} else {
+  showSetupStage();
+}
   if (APP_STAGE === "RUNNING") {
     startScreen.style.display = "none";
     app.style.display = "grid";
@@ -181,6 +196,7 @@ confirmSheetBtn.onclick = () => {
 
   sheetModal.style.display = "none";
   startAuctionBtn.disabled = false;
+  showActionStage();
   document.body.classList.add("sheet-linked");
 };
 
@@ -203,6 +219,8 @@ backBtn.onclick = () => {
 };
 
 refreshBtn.onclick = loadData;
+showSetupStage();
+
 
 /**************************************************
  * LOAD DATA
@@ -436,6 +454,7 @@ function hardResetApp() {
   indexedDB.deleteDatabase("auction_images_db");
   location.reload();
 }
+
 
 
 
