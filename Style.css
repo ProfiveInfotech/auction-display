@@ -273,3 +273,69 @@ body {
   gap: 16px;
   justify-content: center;
 }
+/* =====================================================
+   START SCREEN – PROFESSIONAL CENTERED PANEL (UI ONLY)
+   ===================================================== */
+
+.startScreen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Center card */
+.startScreen::before {
+  content: "";
+}
+
+/* Unified panel */
+.startButtons {
+  background: linear-gradient(180deg, #020617, #01040a);
+  border: 2px solid #facc15;
+  border-radius: 22px;
+  padding: 48px 64px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+
+  box-shadow:
+    0 0 30px rgba(250, 204, 21, 0.25),
+    0 40px 120px rgba(0,0,0,0.9);
+}
+
+/* Keep rows aligned */
+.setupStage,
+.actionStage {
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Button width consistency */
+.startButtons .btn {
+  min-width: 280px;
+  text-align: center;
+}
+
+/* Subtle separation when both stages exist */
+.actionStage {
+  margin-top: 10px;
+}
+
+/* Smooth appearance (no logic impact) */
+.startButtons {
+  animation: fadeInUp 0.35s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
