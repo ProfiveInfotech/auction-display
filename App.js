@@ -27,16 +27,14 @@ let tablePageIndex = 0;
 let rowIndex = 0;
 let rowTimer = null;
 
-/* BID FLICKER */
 let bidFlickerTimer = null;
 let bidFlickerState = false;
-
-/* LOCAL IMAGES */
 let imageMap = {};
 
 /**************************************************
  * DOM
  **************************************************/
+const startScreen = document.getElementById("startScreen"); // 🔥 FIX
 const app = document.getElementById("app");
 const stage = document.querySelector(".stage");
 const counter = document.getElementById("counter");
@@ -61,23 +59,34 @@ const linkConfirmBtn = document.getElementById("linkConfirmBtn");
 const sheetLinkInput = document.getElementById("sheetLinkInput");
 
 /**************************************************
- * INIT UI
+ * INIT UI (FIXED)
  **************************************************/
 function initUI() {
+  // reset
+  startScreen.style.display = "none";   // 🔥 FIX
   linkButtons.style.display = "none";
   actionButtons.style.display = "none";
   app.style.display = "none";
 
-  if (APP_STAGE === "LINK") linkButtons.style.display = "flex";
+  if (APP_STAGE === "LINK") {
+    startScreen.style.display = "grid"; // 🔥 FIX
+    linkButtons.style.display = "flex";
+  }
 
-  if (APP_STAGE === "READY") actionButtons.style.display = "flex";
+  if (APP_STAGE === "READY") {
+    startScreen.style.display = "grid"; // 🔥 FIX
+    actionButtons.style.display = "flex";
+  }
 
   if (APP_STAGE === "RUNNING") {
+    startScreen.style.display = "none"; // 🔥 FIX
     app.style.display = "grid";
     loadData();
   }
 }
+
 initUI();
+
 
 /**************************************************
  * LINK DATA
@@ -365,3 +374,4 @@ function parseCSV(csv) {
     return o;
   });
 }
+
