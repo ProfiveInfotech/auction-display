@@ -29,8 +29,6 @@ let rowTimer = null;
 
 let bidFlickerTimer = null;
 let bidFlickerState = false;
-
-/* LOCAL IMAGES */
 let imageMap = {};
 
 /**************************************************
@@ -102,21 +100,12 @@ function initUI() {
     loadData();
   }
 }
-
 initUI();
 
 /**************************************************
- * MODAL
+ * LINK DATA
  **************************************************/
-/**************************************************
- * LINK DATA BUTTON — GUARANTEED CLICK
- **************************************************/
-linkDataBtn.addEventListener("click", (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-
-  console.log("Link Your Data clicked"); // 👈 you will see this
-
+linkDataBtn.addEventListener("click", () => {
   sheetLinkInput.value = MASTER_SHEET_URL || "";
   warningModal.style.display = "flex";
 });
@@ -126,28 +115,21 @@ warningOkBtn.onclick = () => {
 };
 
 linkConfirmBtn.onclick = async () => {
-  const url = sheetLinkInput.value.trim();
-  const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+  const match = sheetLinkInput.value.match(/\/d\/([a-zA-Z0-9-_]+)/);
   if (!match) return alert("Invalid Google Sheet link");
 
-  const sheetId = match[1];
-  const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+  const csvUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/export?format=csv`;
 
-  try {
-    const res = await fetch(csvUrl);
-    const text = await res.text();
-    if (!text.trim()) throw new Error();
-  } catch {
-    alert("Sheet not accessible");
-    return;
-  }
+  const res = await fetch(csvUrl);
+  const text = await res.text();
+  if (!text.trim()) return alert("Sheet not accessible");
 
-  MASTER_SHEET_URL = url;
+  MASTER_SHEET_URL = sheetLinkInput.value;
   GOOGLE_SHEET_CSV = csvUrl;
   APP_STAGE = "READY";
 
-  localStorage.setItem("MASTER_SHEET_URL", url);
-  localStorage.setItem("GOOGLE_SHEET_CSV", csvUrl);
+  localStorage.setItem("MASTER_SHEET_URL", MASTER_SHEET_URL);
+  localStorage.setItem("GOOGLE_SHEET_CSV", GOOGLE_SHEET_CSV);
   localStorage.setItem("APP_STAGE", "READY");
 
   warningModal.style.display = "none";
@@ -155,25 +137,22 @@ linkConfirmBtn.onclick = async () => {
 };
 
 /**************************************************
- * IMAGE LOADING
+ * IMAGE LOAD
  **************************************************/
 selectImagesBtn.onclick = () => imagePickerInput.click();
 
 imagePickerInput.onchange = () => {
   imageMap = {};
-  [...imagePickerInput.files].forEach(file => {
-    const name = file.name.split(".")[0];
-    imageMap[name] = URL.createObjectURL(file);
+  [...imagePickerInput.files].forEach(f => {
+    imageMap[f.name.split(".")[0]] = URL.createObjectURL(f);
   });
-  alert("Image folder loaded successfully");
+  alert("Images loaded");
 };
 
 /**************************************************
  * ACTIONS
  **************************************************/
-openSheetBtn.onclick = () => {
-  if (MASTER_SHEET_URL) window.open(MASTER_SHEET_URL, "_blank");
-};
+openSheetBtn.onclick = () => window.open(MASTER_SHEET_URL, "_blank");
 
 startAuctionBtn.onclick = () => {
   APP_STAGE = "RUNNING";
@@ -188,22 +167,13 @@ refreshBtn.onclick = loadData;
  **************************************************/
 async function loadData() {
   stopAllTimers();
-  stopBidFlicker();
-
   const res = await fetch(GOOGLE_SHEET_CSV, { cache: "no-store" });
-  const text = await res.text();
-
-  const rows = parseCSV(text).filter(
+  const rows = parseCSV(await res.text()).filter(
     r => String(r.Status).toLowerCase() === "open"
   );
-
   slides = buildSlides(rows);
   slideIndex = 0;
   paused = false;
-
-  pauseBtn.style.display = "inline-block";
-  resumeBtn.style.display = "none";
-
   playSlide();
 }
 
@@ -213,15 +183,10 @@ async function loadData() {
 function buildSlides(rows) {
   const out = [];
   let count = 0;
-
   for (const r of rows) {
-    const image = imageMap[r.Item] || null;
-    out.push({ type: "item", record: r, image });
+    out.push({ type: "item", record: r, image: imageMap[r.Item] });
     count++;
-
-    if (count % IMAGES_BEFORE_TABLE === 0) {
-      out.push({ type: "table", rows });
-    }
+    if (count % IMAGES_BEFORE_TABLE === 0) out.push({ type: "table", rows });
   }
   return out;
 }
@@ -231,7 +196,6 @@ function buildSlides(rows) {
  **************************************************/
 function playSlide() {
   stopAllTimers();
-  stopBidFlicker();
   if (paused) return;
 
   const slide = slides[slideIndex];
@@ -239,31 +203,10 @@ function playSlide() {
 
   if (slide.type === "item") {
     renderItem(slide);
-    startBidFlicker();
-    startCountdown(IMAGE_DURATION);
-    counter.textContent = `IMAGE ${slideIndex + 1}/${slides.length}`;
     slideTimer = setTimeout(nextSlide, IMAGE_DURATION * 1000);
   } else {
     playTable(slide.rows);
   }
-}
-
-/**************************************************
- * COUNTDOWN
- **************************************************/
-function startCountdown(seconds) {
-  let remaining = seconds;
-  countdownEl.textContent = remaining;
-  countdownEl.style.display = "block";
-
-  countdownTimer = setInterval(() => {
-    remaining--;
-    countdownEl.textContent = remaining;
-    if (remaining <= 0) {
-      clearInterval(countdownTimer);
-      countdownEl.style.display = "none";
-    }
-  }, 1000);
 }
 
 /**************************************************
@@ -287,129 +230,80 @@ function playTablePage() {
     rowIndex++;
     if (rowIndex >= ROWS_PER_PAGE) {
       clearInterval(rowTimer);
-      tablePageIndex++;
-      if (tablePageIndex >= tablePages.length) {
-        nextSlide();
-        return;
-      }
-      playTablePage();
+      nextSlide();
+      return;
     }
     highlightRow();
   }, ROW_HIGHLIGHT_DURATION * 1000);
 }
 
 /**************************************************
- * RENDERING
+ * RENDER
  **************************************************/
+function drawTablePage() {
+  stage.innerHTML = `
+    <div class="tableContainer">
+      <table class="auctionTable">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Type</th>
+            <th>Base Price</th>
+            <th>Current Bid</th>
+            <th>Bidder</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tablePages[tablePageIndex].map(r => `
+            <tr>
+              <td>${r.Item}</td>
+              <td>${r.Type}</td>
+              <td>${r["Base Price"]}</td>
+              <td>${r["Current Bid"]}</td>
+              <td>${r["Name of Bidder"]}</td>
+              <td>${r.Status}</td>
+            </tr>`).join("")}
+        </tbody>
+      </table>
+    </div>`;
+}
+
 function renderItem(slide) {
   stage.innerHTML = `
     <div class="imageWrapper">
-      ${slide.image ? `<img src="${slide.image}">` : `<div class="noImage">Image not found</div>`}
+      ${slide.image ? `<img src="${slide.image}">` : `<div class="noImage">No Image</div>`}
     </div>
     <div class="infoPanel">
       ${Object.entries(slide.record).map(([k,v]) => `
         <div class="block">
           <div class="label">${k}</div>
-          <div class="value ${k.toLowerCase()==="current bid"?"currentBid":""}">
-            ${v || "-"}
-          </div>
+          <div class="value">${v}</div>
         </div>`).join("")}
     </div>`;
 }
 
-function drawTablePage() {
-  stage.innerHTML = `
-    <div class="tableContainer">
-      ${tableHTML(tablePages[tablePageIndex])}
-    </div>`;
-}
-
-function tableHTML(rows) {
-  return `
-    <table class="auctionTable">
-      <tbody>
-        ${rows.map(r => `
-          <tr>
-            <td>${r.Item}</td>
-            <td>${r.Type}</td>
-            <td>${r["Base Price"]}</td>
-            <td>${r["Current Bid"]}</td>
-            <td>${r["Name of Bidder"]}</td>
-            <td>${r.Status}</td>
-          </tr>`).join("")}
-      </tbody>
-    </table>`;
-}
-
 /**************************************************
- * NAVIGATION
+ * NAV
  **************************************************/
 function nextSlide() {
   slideIndex = (slideIndex + 1) % slides.length;
   playSlide();
 }
-function prevSlide() {
-  slideIndex = (slideIndex - 1 + slides.length) % slides.length;
-  playSlide();
-}
-prevBtn.onclick = prevSlide;
+prevBtn.onclick = () => { slideIndex--; playSlide(); };
 nextBtn.onclick = nextSlide;
-
-/**************************************************
- * CONTROLS
- **************************************************/
-pauseBtn.onclick = () => {
-  paused = true;
-  stopAllTimers();
-  stopBidFlicker();
-  pauseBtn.style.display = "none";
-  resumeBtn.style.display = "inline-block";
-};
-
-resumeBtn.onclick = () => {
-  paused = false;
-  pauseBtn.style.display = "inline-block";
-  resumeBtn.style.display = "none";
-  playSlide();
-};
-
-/**************************************************
- * ROW HIGHLIGHT
- **************************************************/
-function highlightRow() {
-  const rows = document.querySelectorAll(".auctionTable tbody tr");
-  rows.forEach(r => r.classList.remove("active"));
-  if (rows[rowIndex]) rows[rowIndex].classList.add("active");
-}
-
-/**************************************************
- * BID FLICKER
- **************************************************/
-function startBidFlicker() {
-  const bidEl = document.querySelector(".currentBid");
-  if (!bidEl) return;
-
-  bidFlickerState = false;
-  bidEl.style.color = "#22c55e";
-
-  bidFlickerTimer = setInterval(() => {
-    bidFlickerState = !bidFlickerState;
-    bidEl.style.color = bidFlickerState ? "#facc15" : "#22c55e";
-  }, 600);
-}
-
-function stopBidFlicker() {
-  clearInterval(bidFlickerTimer);
-}
 
 /**************************************************
  * HELPERS
  **************************************************/
+function highlightRow() {
+  document.querySelectorAll(".auctionTable tbody tr")
+    .forEach((r,i) => r.classList.toggle("active", i === rowIndex));
+}
+
 function stopAllTimers() {
   clearTimeout(slideTimer);
   clearInterval(rowTimer);
-  clearInterval(countdownTimer);
-  countdownEl.style.display = "none";
 }
 
 function parseCSV(csv) {
@@ -418,8 +312,7 @@ function parseCSV(csv) {
   return lines.map(l => {
     const v = l.split(",");
     const o = {};
-    headers.forEach((h, i) => (o[h.trim()] = v[i]?.trim() || ""));
+    headers.forEach((h,i) => o[h.trim()] = v[i]?.trim() || "");
     return o;
   });
 }
-
