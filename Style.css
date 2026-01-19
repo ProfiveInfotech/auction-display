@@ -176,6 +176,10 @@ body {
   gap: 20px;
   justify-content: center;
 }
+.setupStage,
+.actionStage {
+  display: none;
+}
 
 /* ================= BUTTONS ================= */
 
@@ -604,4 +608,5 @@ body.sheet-linked .actionStage {
 /* =====================================================
    FIX: CENTER START SCREEN BUTTONS PERFECTLY
    ===================================================== */
+
 
