@@ -29,7 +29,8 @@ let rowTimer = null;
 
 let bidFlickerTimer = null;
 let bidFlickerState = false;
-let imageMap = {};
+
+let imageMap = {}; // Item -> objectURL
 
 /**************************************************
  * DOM
@@ -59,7 +60,7 @@ const linkConfirmBtn = document.getElementById("linkConfirmBtn");
 const sheetLinkInput = document.getElementById("sheetLinkInput");
 
 /**************************************************
- * IMAGE FOLDER PICKER
+ * IMAGE PICKER
  **************************************************/
 const imagePickerInput = document.createElement("input");
 imagePickerInput.type = "file";
@@ -73,9 +74,50 @@ selectImagesBtn.textContent = "🖼 Select Image Folder";
 selectImagesBtn.className = "btn secondary";
 
 /**************************************************
+ * INDEXED DB (IMAGE PERSISTENCE)
+ **************************************************/
+let db;
+
+function initDB() {
+  return new Promise(resolve => {
+    const req = indexedDB.open("auction_images", 1);
+    req.onupgradeneeded = e => {
+      e.target.result.createObjectStore("images", { keyPath: "key" });
+    };
+    req.onsuccess = e => {
+      db = e.target.result;
+      resolve();
+    };
+  });
+}
+
+function saveImage(key, blob) {
+  const tx = db.transaction("images", "readwrite");
+  tx.objectStore("images").put({ key, blob });
+}
+
+function loadImagesFromDB() {
+  return new Promise(resolve => {
+    const tx = db.transaction("images", "readonly");
+    const store = tx.objectStore("images");
+    const req = store.getAll();
+    req.onsuccess = () => {
+      imageMap = {};
+      req.result.forEach(r => {
+        imageMap[r.key] = URL.createObjectURL(r.blob);
+      });
+      resolve();
+    };
+  });
+}
+
+/**************************************************
  * INIT UI
  **************************************************/
-function initUI() {
+async function initUI() {
+  await initDB();
+  await loadImagesFromDB();
+
   startScreen.style.display = "none";
   linkButtons.style.display = "none";
   actionButtons.style.display = "none";
@@ -100,15 +142,16 @@ function initUI() {
     loadData();
   }
 }
+
 initUI();
 
 /**************************************************
  * LINK DATA
  **************************************************/
-linkDataBtn.addEventListener("click", () => {
+linkDataBtn.onclick = () => {
   sheetLinkInput.value = MASTER_SHEET_URL || "";
   warningModal.style.display = "flex";
-});
+};
 
 warningOkBtn.onclick = () => {
   warningModal.style.display = "none";
@@ -118,35 +161,32 @@ linkConfirmBtn.onclick = async () => {
   const match = sheetLinkInput.value.match(/\/d\/([a-zA-Z0-9-_]+)/);
   if (!match) return alert("Invalid Google Sheet link");
 
-  const csvUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/export?format=csv`;
-
-  const res = await fetch(csvUrl);
-  const text = await res.text();
-  if (!text.trim()) return alert("Sheet not accessible");
-
   MASTER_SHEET_URL = sheetLinkInput.value;
-  GOOGLE_SHEET_CSV = csvUrl;
-  APP_STAGE = "READY";
+  GOOGLE_SHEET_CSV =
+    `https://docs.google.com/spreadsheets/d/${match[1]}/export?format=csv`;
 
   localStorage.setItem("MASTER_SHEET_URL", MASTER_SHEET_URL);
   localStorage.setItem("GOOGLE_SHEET_CSV", GOOGLE_SHEET_CSV);
   localStorage.setItem("APP_STAGE", "READY");
+  APP_STAGE = "READY";
 
   warningModal.style.display = "none";
   initUI();
 };
 
 /**************************************************
- * IMAGE LOAD
+ * IMAGE LOAD + PERSIST
  **************************************************/
 selectImagesBtn.onclick = () => imagePickerInput.click();
 
 imagePickerInput.onchange = () => {
   imageMap = {};
-  [...imagePickerInput.files].forEach(f => {
-    imageMap[f.name.split(".")[0]] = URL.createObjectURL(f);
+  [...imagePickerInput.files].forEach(file => {
+    const key = file.name.split(".")[0];
+    saveImage(key, file);
+    imageMap[key] = URL.createObjectURL(file);
   });
-  alert("Images loaded");
+  alert("Images saved. They will persist after refresh.");
 };
 
 /**************************************************
@@ -167,13 +207,20 @@ refreshBtn.onclick = loadData;
  **************************************************/
 async function loadData() {
   stopAllTimers();
+  stopBidFlicker();
+
   const res = await fetch(GOOGLE_SHEET_CSV, { cache: "no-store" });
   const rows = parseCSV(await res.text()).filter(
     r => String(r.Status).toLowerCase() === "open"
   );
+
   slides = buildSlides(rows);
   slideIndex = 0;
   paused = false;
+
+  pauseBtn.style.display = "inline-block";
+  resumeBtn.style.display = "none";
+
   playSlide();
 }
 
@@ -183,10 +230,13 @@ async function loadData() {
 function buildSlides(rows) {
   const out = [];
   let count = 0;
+
   for (const r of rows) {
     out.push({ type: "item", record: r, image: imageMap[r.Item] });
     count++;
-    if (count % IMAGES_BEFORE_TABLE === 0) out.push({ type: "table", rows });
+    if (count % IMAGES_BEFORE_TABLE === 0) {
+      out.push({ type: "table", rows });
+    }
   }
   return out;
 }
@@ -196,6 +246,7 @@ function buildSlides(rows) {
  **************************************************/
 function playSlide() {
   stopAllTimers();
+  stopBidFlicker();
   if (paused) return;
 
   const slide = slides[slideIndex];
@@ -203,10 +254,31 @@ function playSlide() {
 
   if (slide.type === "item") {
     renderItem(slide);
+    startBidFlicker();
+    startCountdown(IMAGE_DURATION);
+    counter.textContent = `ITEM ${slideIndex + 1} / ${slides.length}`;
     slideTimer = setTimeout(nextSlide, IMAGE_DURATION * 1000);
   } else {
     playTable(slide.rows);
   }
+}
+
+/**************************************************
+ * COUNTDOWN
+ **************************************************/
+function startCountdown(seconds) {
+  let remaining = seconds;
+  countdownEl.textContent = remaining;
+  countdownEl.style.display = "block";
+
+  countdownTimer = setInterval(() => {
+    remaining--;
+    countdownEl.textContent = remaining;
+    if (remaining <= 0) {
+      clearInterval(countdownTimer);
+      countdownEl.style.display = "none";
+    }
+  }, 1000);
 }
 
 /**************************************************
@@ -272,38 +344,78 @@ function drawTablePage() {
 function renderItem(slide) {
   stage.innerHTML = `
     <div class="imageWrapper">
-      ${slide.image ? `<img src="${slide.image}">` : `<div class="noImage">No Image</div>`}
+      ${slide.image ? `<img src="${slide.image}">` : `<div class="noImage">Image not found</div>`}
     </div>
     <div class="infoPanel">
       ${Object.entries(slide.record).map(([k,v]) => `
         <div class="block">
           <div class="label">${k}</div>
-          <div class="value">${v}</div>
+          <div class="value ${k.toLowerCase()==="current bid"?"currentBid":""}">
+            ${v || "-"}
+          </div>
         </div>`).join("")}
     </div>`;
 }
 
 /**************************************************
- * NAV
+ * NAVIGATION
  **************************************************/
 function nextSlide() {
   slideIndex = (slideIndex + 1) % slides.length;
   playSlide();
 }
-prevBtn.onclick = () => { slideIndex--; playSlide(); };
+function prevSlide() {
+  slideIndex = (slideIndex - 1 + slides.length) % slides.length;
+  playSlide();
+}
+prevBtn.onclick = prevSlide;
 nextBtn.onclick = nextSlide;
+
+/**************************************************
+ * CONTROLS
+ **************************************************/
+pauseBtn.onclick = () => {
+  paused = true;
+  stopAllTimers();
+  stopBidFlicker();
+  pauseBtn.style.display = "none";
+  resumeBtn.style.display = "inline-block";
+};
+
+resumeBtn.onclick = () => {
+  paused = false;
+  pauseBtn.style.display = "inline-block";
+  resumeBtn.style.display = "none";
+  playSlide();
+};
 
 /**************************************************
  * HELPERS
  **************************************************/
 function highlightRow() {
   document.querySelectorAll(".auctionTable tbody tr")
-    .forEach((r,i) => r.classList.toggle("active", i === rowIndex));
+    .forEach((r,i)=>r.classList.toggle("active", i===rowIndex));
 }
 
 function stopAllTimers() {
   clearTimeout(slideTimer);
   clearInterval(rowTimer);
+  clearInterval(countdownTimer);
+  countdownEl.style.display = "none";
+}
+
+function startBidFlicker() {
+  const el = document.querySelector(".currentBid");
+  if (!el) return;
+  bidFlickerState = false;
+  bidFlickerTimer = setInterval(() => {
+    bidFlickerState = !bidFlickerState;
+    el.style.color = bidFlickerState ? "#facc15" : "#22c55e";
+  }, 600);
+}
+
+function stopBidFlicker() {
+  clearInterval(bidFlickerTimer);
 }
 
 function parseCSV(csv) {
@@ -312,7 +424,7 @@ function parseCSV(csv) {
   return lines.map(l => {
     const v = l.split(",");
     const o = {};
-    headers.forEach((h,i) => o[h.trim()] = v[i]?.trim() || "");
+    headers.forEach((h,i)=>o[h.trim()] = v[i]?.trim() || "");
     return o;
   });
 }
