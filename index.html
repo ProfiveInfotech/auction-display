@@ -1,89 +1,262 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Live Auction</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="Style.css" />
+<meta charset="UTF-8">
+<title>Auction Display</title>
+
+<style>
+/* ================= GLOBAL ================= */
+body {
+    margin: 0;
+    background: #000;
+    color: #fff;
+    font-family: system-ui, Arial, sans-serif;
+    overflow: hidden;
+}
+
+/* ================= TOP BAR ================= */
+#topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 54px;
+    background: #111;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 14px;
+    z-index: 100;
+}
+
+button {
+    background: #222;
+    color: #fff;
+    border: 1px solid #333;
+    padding: 6px 12px;
+    cursor: pointer;
+}
+button:hover { background: #333; }
+
+#counter {
+    margin-left: auto;
+    font-weight: bold;
+}
+
+#countdown {
+    width: 50px;
+    text-align: center;
+    font-size: 20px;
+    font-weight: bold;
+    color: #00ffcc;
+}
+
+/* ================= STAGE ================= */
+#stage {
+    position: absolute;
+    top: 54px;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ================= IMAGE SLIDE ================= */
+.slide-img {
+    max-width: 95%;
+    max-height: 95%;
+}
+
+/* ================= TABLE SLIDE ================= */
+table {
+    width: 90%;
+    border-collapse: collapse;
+    font-size: 18px;
+}
+
+th, td {
+    border: 1px solid #333;
+    padding: 8px;
+    text-align: center;
+}
+
+thead {
+    background: #111;
+}
+
+tbody tr.active {
+    background: #003cff;
+    animation: flicker 1s infinite alternate;
+}
+
+@keyframes flicker {
+    from { background: #003cff; }
+    to   { background: #0059ff; }
+}
+</style>
 </head>
+
 <body>
 
-<!-- ===== START SCREEN ===== -->
-<div id="startScreen">
+<div id="topbar">
+    <button onclick="prevSlide()">⏮ Prev</button>
+    <button onclick="togglePause()">⏯ Pause</button>
+    <button onclick="nextSlide()">⏭ Next</button>
+    <button onclick="refresh()">🔄 Refresh</button>
 
-  <div class="startButtons" id="linkButtons">
-    <button id="linkDataBtn" class="btn primary">
-      🔗 Link Your Data
-    </button>
-  </div>
-
-  <div class="startButtons" id="actionButtons" style="display:none;">
-    <button id="openSheetBtn" class="btn secondary">
-      📊 Open Master Data
-    </button>
-
-    <button id="startAuctionBtn" class="btn primary">
-      ▶ Start Auction
-    </button>
-  </div>
-
+    <div id="countdown">–</div>
+    <div id="counter">0 / 0</div>
 </div>
 
-<!-- ===== MAIN APP ===== -->
-<div id="app" style="display:none;">
-  <header class="topbar">
-    <h1 class="liveHeader">
-      <span class="liveIndicator">
-        <span class="liveDot"></span>
-        <span class="liveRing"></span>
-      </span>
-      Live Auction
-    </h1>
+<div id="stage"></div>
 
-    <div class="topControls">
-      <button id="refreshBtn">🔄 Refresh</button>
-      <button id="pauseBtn">⏸ Pause</button>
-      <button id="resumeBtn" style="display:none;">▶ Resume</button>
-    </div>
-  </header>
+<script>
+/*********************************************************
+ * GLOBAL STATE
+ *********************************************************/
+let slides = [];
+let index = 0;
+let slideTimer = null;
+let countdownTimer = null;
+let paused = false;
+let remainingSeconds = 0;
 
-  <main class="stage"></main>
+/*********************************************************
+ * DURATIONS (seconds)
+ *********************************************************/
+const IMAGE_DURATION = 5;
+const TABLE_DURATION = 10;
 
-  <div class="controls">
-    <button id="prevBtn">◀ Prev</button>
-    <button id="nextBtn">Next ▶</button>
-  </div>
+/*********************************************************
+ * INIT
+ *********************************************************/
+document.addEventListener("DOMContentLoaded", () => {
+    // slides MUST already be prepared here
+    // This file only restores behavior
+    slides = window.AUCTION_SLIDES || [];
+    if (!slides.length) return;
 
-  <div id="counter" class="slideCounter"></div>
-  <div id="countdown" class="countdownTimer"></div>
-</div>
+    renderSlide();
+    startSlideTimer();
+});
 
-<!-- ===== LINK GOOGLE SHEET MODAL ===== -->
-<div id="warningModal" class="warningOverlay" style="display:none;">
-  <div class="warningBox">
-    <div class="warningTitle">🔗 Link Google Sheet</div>
-    <div class="warningText">
-      Paste your Google Sheet link below.<br />
-      We will safely extract the Sheet ID.
-    </div>
+/*********************************************************
+ * RENDER
+ *********************************************************/
+function renderSlide() {
+    const stage = document.getElementById("stage");
+    stage.innerHTML = "";
 
-    <input
-      id="sheetLinkInput"
-      class="sheetInput"
-      type="text"
-      placeholder="https://docs.google.com/spreadsheets/d/..."
-    />
+    const slide = slides[index];
+    document.getElementById("counter").textContent =
+        `${index + 1} / ${slides.length}`;
 
-    <div class="modalActions">
-      <button id="linkConfirmBtn" class="btn primary">✅ Link Data</button>
-      <button id="warningOkBtn" class="btn secondary">Cancel</button>
-    </div>
-  </div>
-</div>
+    if (slide.type === "image") {
+        const img = document.createElement("img");
+        img.src = slide.src;
+        img.className = "slide-img";
+        stage.appendChild(img);
+        startCountdown(IMAGE_DURATION);
+    }
 
-<script src="App.js"></script>
+    if (slide.type === "table") {
+        const table = document.createElement("table");
+        table.innerHTML = slide.html;
+        stage.appendChild(table);
+        animateRows(table);
+        startCountdown(TABLE_DURATION);
+    }
+}
+
+/*********************************************************
+ * ROW HIGHLIGHT (RESTORED)
+ *********************************************************/
+function animateRows(table) {
+    const rows = table.querySelectorAll("tbody tr");
+    let i = 0;
+
+    rows.forEach(r => r.classList.remove("active"));
+
+    const interval = setInterval(() => {
+        rows.forEach(r => r.classList.remove("active"));
+        if (i < rows.length) {
+            rows[i].classList.add("active");
+            i++;
+        } else {
+            clearInterval(interval);
+        }
+    }, 1000);
+}
+
+/*********************************************************
+ * SLIDE TIMER
+ *********************************************************/
+function startSlideTimer() {
+    clearTimeout(slideTimer);
+    const duration =
+        slides[index].type === "image"
+        ? IMAGE_DURATION
+        : TABLE_DURATION;
+
+    slideTimer = setTimeout(() => {
+        if (!paused) nextSlide();
+    }, duration * 1000);
+}
+
+/*********************************************************
+ * COUNTDOWN (5 4 3 2 1)
+ *********************************************************/
+function startCountdown(seconds) {
+    clearInterval(countdownTimer);
+    remainingSeconds = seconds;
+    updateCountdown();
+
+    countdownTimer = setInterval(() => {
+        if (!paused) {
+            remainingSeconds--;
+            updateCountdown();
+            if (remainingSeconds <= 0) {
+                clearInterval(countdownTimer);
+            }
+        }
+    }, 1000);
+}
+
+function updateCountdown() {
+    document.getElementById("countdown").textContent =
+        remainingSeconds > 0 ? remainingSeconds : "–";
+}
+
+/*********************************************************
+ * CONTROLS (RESTORED)
+ *********************************************************/
+function nextSlide() {
+    index = (index + 1) % slides.length;
+    renderSlide();
+    startSlideTimer();
+}
+
+function prevSlide() {
+    index = (index - 1 + slides.length) % slides.length;
+    renderSlide();
+    startSlideTimer();
+}
+
+function togglePause() {
+    paused = !paused;
+    if (paused) {
+        clearTimeout(slideTimer);
+    } else {
+        startSlideTimer();
+    }
+}
+
+function refresh() {
+    location.reload();
+}
+</script>
+
 </body>
 </html>
-
-
-
