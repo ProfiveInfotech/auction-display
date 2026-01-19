@@ -108,10 +108,18 @@ initUI();
 /**************************************************
  * MODAL
  **************************************************/
-linkDataBtn.onclick = () => {
+/**************************************************
+ * LINK DATA BUTTON — GUARANTEED CLICK
+ **************************************************/
+linkDataBtn.addEventListener("click", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+
+  console.log("Link Your Data clicked"); // 👈 you will see this
+
   sheetLinkInput.value = MASTER_SHEET_URL || "";
   warningModal.style.display = "flex";
-};
+});
 
 warningOkBtn.onclick = () => {
   warningModal.style.display = "none";
@@ -414,3 +422,4 @@ function parseCSV(csv) {
     return o;
   });
 }
+
