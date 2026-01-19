@@ -29,12 +29,14 @@ let rowTimer = null;
 
 let bidFlickerTimer = null;
 let bidFlickerState = false;
+
+/* LOCAL IMAGES */
 let imageMap = {};
 
 /**************************************************
  * DOM
  **************************************************/
-const startScreen = document.getElementById("startScreen"); // 🔥 FIX
+const startScreen = document.getElementById("startScreen");
 const app = document.getElementById("app");
 const stage = document.querySelector(".stage");
 const counter = document.getElementById("counter");
@@ -59,27 +61,43 @@ const linkConfirmBtn = document.getElementById("linkConfirmBtn");
 const sheetLinkInput = document.getElementById("sheetLinkInput");
 
 /**************************************************
- * INIT UI (FIXED)
+ * IMAGE FOLDER PICKER
+ **************************************************/
+const imagePickerInput = document.createElement("input");
+imagePickerInput.type = "file";
+imagePickerInput.webkitdirectory = true;
+imagePickerInput.multiple = true;
+imagePickerInput.style.display = "none";
+document.body.appendChild(imagePickerInput);
+
+const selectImagesBtn = document.createElement("button");
+selectImagesBtn.textContent = "🖼 Select Image Folder";
+selectImagesBtn.className = "btn secondary";
+
+/**************************************************
+ * INIT UI
  **************************************************/
 function initUI() {
-  // reset
-  startScreen.style.display = "none";   // 🔥 FIX
+  startScreen.style.display = "none";
   linkButtons.style.display = "none";
   actionButtons.style.display = "none";
   app.style.display = "none";
 
+  if (selectImagesBtn.parentNode) selectImagesBtn.remove();
+
   if (APP_STAGE === "LINK") {
-    startScreen.style.display = "grid"; // 🔥 FIX
+    startScreen.style.display = "grid";
     linkButtons.style.display = "flex";
   }
 
   if (APP_STAGE === "READY") {
-    startScreen.style.display = "grid"; // 🔥 FIX
+    startScreen.style.display = "grid";
     actionButtons.style.display = "flex";
+    actionButtons.prepend(selectImagesBtn);
   }
 
   if (APP_STAGE === "RUNNING") {
-    startScreen.style.display = "none"; // 🔥 FIX
+    startScreen.style.display = "none";
     app.style.display = "grid";
     loadData();
   }
@@ -87,9 +105,8 @@ function initUI() {
 
 initUI();
 
-
 /**************************************************
- * LINK DATA
+ * MODAL
  **************************************************/
 linkDataBtn.onclick = () => {
   sheetLinkInput.value = MASTER_SHEET_URL || "";
@@ -108,9 +125,14 @@ linkConfirmBtn.onclick = async () => {
   const sheetId = match[1];
   const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
 
-  const res = await fetch(csvUrl);
-  const text = await res.text();
-  if (!text.trim()) return alert("Sheet not accessible");
+  try {
+    const res = await fetch(csvUrl);
+    const text = await res.text();
+    if (!text.trim()) throw new Error();
+  } catch {
+    alert("Sheet not accessible");
+    return;
+  }
 
   MASTER_SHEET_URL = url;
   GOOGLE_SHEET_CSV = csvUrl;
@@ -125,7 +147,21 @@ linkConfirmBtn.onclick = async () => {
 };
 
 /**************************************************
- * START / REFRESH
+ * IMAGE LOADING
+ **************************************************/
+selectImagesBtn.onclick = () => imagePickerInput.click();
+
+imagePickerInput.onchange = () => {
+  imageMap = {};
+  [...imagePickerInput.files].forEach(file => {
+    const name = file.name.split(".")[0];
+    imageMap[name] = URL.createObjectURL(file);
+  });
+  alert("Image folder loaded successfully");
+};
+
+/**************************************************
+ * ACTIONS
  **************************************************/
 openSheetBtn.onclick = () => {
   if (MASTER_SHEET_URL) window.open(MASTER_SHEET_URL, "_blank");
@@ -164,14 +200,15 @@ async function loadData() {
 }
 
 /**************************************************
- * BUILD SLIDES
+ * SLIDES
  **************************************************/
 function buildSlides(rows) {
   const out = [];
   let count = 0;
 
   for (const r of rows) {
-    out.push({ type: "item", record: r });
+    const image = imageMap[r.Item] || null;
+    out.push({ type: "item", record: r, image });
     count++;
 
     if (count % IMAGES_BEFORE_TABLE === 0) {
@@ -258,6 +295,9 @@ function playTablePage() {
  **************************************************/
 function renderItem(slide) {
   stage.innerHTML = `
+    <div class="imageWrapper">
+      ${slide.image ? `<img src="${slide.image}">` : `<div class="noImage">Image not found</div>`}
+    </div>
     <div class="infoPanel">
       ${Object.entries(slide.record).map(([k,v]) => `
         <div class="block">
@@ -374,4 +414,3 @@ function parseCSV(csv) {
     return o;
   });
 }
-
