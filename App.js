@@ -1,5 +1,5 @@
 /**************************************************
- * GOOGLE SHEET
+ * GOOGLE SHEET (DYNAMIC — FROM LINK YOUR DATA)
  **************************************************/
 let MASTER_SHEET_URL = localStorage.getItem("MASTER_SHEET_URL");
 let GOOGLE_SHEET_CSV = localStorage.getItem("GOOGLE_SHEET_CSV");
@@ -30,52 +30,6 @@ let rowTimer = null;
 let bidFlickerTimer = null;
 let bidFlickerState = false;
 
-/* LOCAL IMAGES */
-let imageMap = {}; // { A001: blobURL }
-
-/**************************************************
- * INDEXED DB (IMAGES)
- **************************************************/
-const DB_NAME = "auction_images_db";
-const STORE_NAME = "images";
-
-function openImageDB() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
-    req.onupgradeneeded = e => {
-      e.target.result.createObjectStore(STORE_NAME);
-    };
-    req.onsuccess = e => resolve(e.target.result);
-    req.onerror = () => reject();
-  });
-}
-
-async function saveImagesToDB(files) {
-  const db = await openImageDB();
-  const tx = db.transaction(STORE_NAME, "readwrite");
-  const store = tx.objectStore(STORE_NAME);
-  files.forEach(file => {
-    const key = file.name.split(".")[0];
-    store.put(file, key);
-  });
-}
-
-async function loadImagesFromDB() {
-  const db = await openImageDB();
-  const tx = db.transaction(STORE_NAME, "readonly");
-  const store = tx.objectStore(STORE_NAME);
-  return new Promise(resolve => {
-    const map = {};
-    store.openCursor().onsuccess = e => {
-      const c = e.target.result;
-      if (c) {
-        map[c.key] = URL.createObjectURL(c.value);
-        c.continue();
-      } else resolve(map);
-    };
-  });
-}
-
 /**************************************************
  * DOM
  **************************************************/
@@ -89,19 +43,6 @@ const actionButtons = document.getElementById("actionButtons");
 const linkDataBtn = document.getElementById("linkDataBtn");
 const openSheetBtn = document.getElementById("openSheetBtn");
 const startAuctionBtn = document.getElementById("startAuctionBtn");
-
-/* IMAGE PICKER */
-const imagePickerInput = document.createElement("input");
-imagePickerInput.type = "file";
-imagePickerInput.webkitdirectory = true;
-imagePickerInput.multiple = true;
-imagePickerInput.style.display = "none";
-document.body.appendChild(imagePickerInput);
-
-const selectImagesBtn = document.createElement("button");
-selectImagesBtn.textContent = "🖼 Select Image Folder";
-selectImagesBtn.className = "btn secondary";
-selectImagesBtn.style.marginRight = "12px";
 
 const pauseBtn = document.getElementById("pauseBtn");
 const resumeBtn = document.getElementById("resumeBtn");
@@ -125,24 +66,18 @@ backBtn.style.marginRight = "12px";
 /**************************************************
  * INIT UI
  **************************************************/
-async function initUI() {
+function initUI() {
   linkButtons.style.display = "none";
   actionButtons.style.display = "none";
   app.style.display = "none";
-
   backBtn.remove();
-  selectImagesBtn.remove();
-
-  imageMap = await loadImagesFromDB();
 
   if (APP_STAGE === "LINK") {
     linkButtons.style.display = "flex";
-    linkButtons.prepend(selectImagesBtn); // ✅ NEW (only addition)
   }
 
   if (APP_STAGE === "READY" && MASTER_SHEET_URL && GOOGLE_SHEET_CSV) {
     actionButtons.style.display = "flex";
-    actionButtons.prepend(selectImagesBtn);
     actionButtons.prepend(backBtn);
   }
 
@@ -170,33 +105,53 @@ backBtn.onclick = () => {
 /**************************************************
  * MODAL
  **************************************************/
-warningOkBtn.onclick = () => {
+function showModal() {
+  warningModal.style.display = "flex";
+}
+function hideModal() {
   warningModal.style.display = "none";
-};
+}
+warningOkBtn.onclick = hideModal;
 
 /**************************************************
- * LINK DATA
+ * LINK DATA (VALIDATION — FIXED)
  **************************************************/
 linkDataBtn.onclick = () => {
   sheetLinkInput.value = MASTER_SHEET_URL || "";
-  warningModal.style.display = "flex";
+  showModal();
 };
 
 linkConfirmBtn.onclick = async () => {
   const url = sheetLinkInput.value.trim();
-  if (!url.includes("docs.google.com/spreadsheets")) {
+
+  if (!url || !url.includes("docs.google.com/spreadsheets")) {
     alert("Invalid Google Sheet link");
     return;
   }
 
-  const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
-  if (!match) {
+  const parsed = parseGoogleSheetUrl(url);
+  if (!parsed.sheetId) {
     alert("Invalid Google Sheet link");
     return;
   }
 
-  const sheetId = match[1];
+  const sheetId = parsed.sheetId;
+  const gid = parsed.gid;
   const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+
+  try {
+    // Validate access by actually loading rows (works even when fetch is CORS-blocked)
+    const rows = await loadSheetRows({ sheetId, gid, csvUrl });
+
+    // DEBUG: show first row keys and count (remove later if not needed)
+    alert(`DEBUG: Loaded ${rows.length} rows. Columns: ${Object.keys(rows[0] || {}).join(", ")}`);
+
+    if (!rows.length) throw new Error("No rows returned");
+  } catch (err) {
+    alert("DEBUG reason: " + (err && err.message ? err.message : String(err)));
+    alert("Sheet is not accessible or not published");
+    return;
+  }
 
   MASTER_SHEET_URL = url;
   GOOGLE_SHEET_CSV = csvUrl;
@@ -206,19 +161,8 @@ linkConfirmBtn.onclick = async () => {
   localStorage.setItem("GOOGLE_SHEET_CSV", csvUrl);
   localStorage.setItem("APP_STAGE", "READY");
 
-  warningModal.style.display = "none";
+  hideModal();
   initUI();
-};
-
-/**************************************************
- * IMAGE PICKER
- **************************************************/
-selectImagesBtn.onclick = () => imagePickerInput.click();
-
-imagePickerInput.onchange = async () => {
-  await saveImagesToDB([...imagePickerInput.files]);
-  imageMap = await loadImagesFromDB();
-  alert("Images saved successfully");
 };
 
 /**************************************************
@@ -243,14 +187,17 @@ async function loadData() {
   stopAllTimers();
   stopBidFlicker();
 
-  const res = await fetch(GOOGLE_SHEET_CSV, { cache: "no-store" });
-  const text = await res.text();
+  // We load rows using the same robust method used in link validation
+  const parsed = parseGoogleSheetUrl(MASTER_SHEET_URL || "");
+  const rowsAll = await loadSheetRows({
+    sheetId: parsed.sheetId,
+    gid: parsed.gid,
+    csvUrl: GOOGLE_SHEET_CSV,
+  });
 
-  const rows = parseCSV(text).filter(
-    r => String(r.Status).toLowerCase() === "open"
-  );
+  const rows = rowsAll.filter(r => String(r.Status).toLowerCase() === "open");
 
-  slides = buildSlides(rows);
+  slides = await buildSlides(rows);
   slideIndex = 0;
   paused = false;
 
@@ -261,24 +208,7 @@ async function loadData() {
 }
 
 /**************************************************
- * SLIDES
- **************************************************/
-function buildSlides(rows) {
-  const out = [];
-  let count = 0;
-  for (const r of rows) {
-    const image = imageMap[r.Item] || null;
-    out.push({ type: "item", record: r, image });
-    count++;
-    if (count % IMAGES_BEFORE_TABLE === 0) {
-      out.push({ type: "table", rows });
-    }
-  }
-  return out;
-}
-
-/**************************************************
- * PLAYER
+ * SLIDE PLAYER
  **************************************************/
 function playSlide() {
   stopAllTimers();
@@ -292,16 +222,20 @@ function playSlide() {
     renderItem(slide);
     startBidFlicker();
     counter.textContent = `IMAGE ${slideIndex + 1}/${slides.length}`;
-    slideTimer = setTimeout(nextSlide, IMAGE_DURATION * 1000);
+    slideTimer = setTimeout(() => {
+      if (!paused) nextSlide();
+    }, IMAGE_DURATION * 1000);
   } else {
     playTable(slide.rows);
   }
 }
 
 /**************************************************
- * TABLE
+ * TABLE PLAYER
  **************************************************/
 function playTable(rows) {
+  stopBidFlicker();
+
   tablePages = [];
   for (let i = 0; i < rows.length; i += ROWS_PER_PAGE) {
     tablePages.push(rows.slice(i, i + ROWS_PER_PAGE));
@@ -311,13 +245,20 @@ function playTable(rows) {
 }
 
 function playTablePage() {
+  stopAllTimers();
+  if (paused) return;
+
   rowIndex = 0;
   drawTablePage();
   highlightRow();
 
   rowTimer = setInterval(() => {
+    if (paused) return;
+
+    const currentPageLen = (tablePages[tablePageIndex] || []).length;
     rowIndex++;
-    if (rowIndex >= ROWS_PER_PAGE) {
+
+    if (rowIndex >= currentPageLen) {
       clearInterval(rowTimer);
       tablePageIndex++;
       if (tablePageIndex >= tablePages.length) {
@@ -325,7 +266,9 @@ function playTablePage() {
         return;
       }
       playTablePage();
+      return;
     }
+
     highlightRow();
   }, ROW_HIGHLIGHT_DURATION * 1000);
 }
@@ -334,13 +277,17 @@ function playTablePage() {
  * NAVIGATION
  **************************************************/
 function nextSlide() {
+  paused = false;
   slideIndex = (slideIndex + 1) % slides.length;
   playSlide();
 }
+
 function prevSlide() {
+  paused = false;
   slideIndex = (slideIndex - 1 + slides.length) % slides.length;
   playSlide();
 }
+
 prevBtn.onclick = prevSlide;
 nextBtn.onclick = nextSlide;
 
@@ -354,6 +301,7 @@ pauseBtn.onclick = () => {
   pauseBtn.style.display = "none";
   resumeBtn.style.display = "inline-block";
 };
+
 resumeBtn.onclick = () => {
   paused = false;
   pauseBtn.style.display = "inline-block";
@@ -369,15 +317,17 @@ function startBidFlicker() {
   if (!bidEl) return;
 
   bidFlickerState = false;
-  bidEl.style.color = "#22c55e";
+  bidEl.style.color = "#22c55e"; // green
 
   bidFlickerTimer = setInterval(() => {
     bidFlickerState = !bidFlickerState;
     bidEl.style.color = bidFlickerState ? "#facc15" : "#22c55e";
   }, 600);
 }
+
 function stopBidFlicker() {
   clearInterval(bidFlickerTimer);
+  bidFlickerTimer = null;
 }
 
 /**************************************************
@@ -386,17 +336,42 @@ function stopBidFlicker() {
 function stopAllTimers() {
   clearTimeout(slideTimer);
   clearInterval(rowTimer);
+  slideTimer = null;
+  rowTimer = null;
 }
 
 function parseCSV(csv) {
   const lines = csv.trim().split("\n");
-  const headers = lines.shift().split(",");
+  const headers = lines.shift().split(",").map(h => h.trim());
   return lines.map(l => {
     const v = l.split(",");
     const o = {};
-    headers.forEach((h, i) => (o[h.trim()] = v[i]?.trim() || ""));
+    headers.forEach((h, i) => (o[h] = v[i]?.trim() || ""));
     return o;
   });
+}
+
+async function buildSlides(rows) {
+  const out = [];
+  let count = 0;
+
+  for (const r of rows) {
+    let image = null;
+    for (const ext of ["jpg", "png", "jpeg", "webp"]) {
+      const p = `Images/${r.Item}.${ext}`;
+      if (await imageExists(p)) {
+        image = p;
+        break;
+      }
+    }
+
+    out.push({ type: "item", record: r, image });
+    count++;
+    if (count % IMAGES_BEFORE_TABLE === 0) {
+      out.push({ type: "table", rows });
+    }
+  }
+  return out;
 }
 
 function renderItem(slide) {
@@ -405,13 +380,17 @@ function renderItem(slide) {
       ${slide.image ? `<img src="${slide.image}">` : `<div class="noImage">Image not found</div>`}
     </div>
     <div class="infoPanel">
-      ${Object.entries(slide.record).map(([k,v]) => `
+      ${Object.entries(slide.record)
+        .map(
+          ([k, v]) => `
         <div class="block">
           <div class="label">${k}</div>
-          <div class="value ${k.toLowerCase()==="current bid"?"currentBid":""}">
+          <div class="value ${k.toLowerCase() === "current bid" ? "currentBid" : ""}">
             ${v || "-"}
           </div>
-        </div>`).join("")}
+        </div>`
+        )
+        .join("")}
     </div>`;
 }
 
@@ -420,21 +399,37 @@ function drawTablePage() {
     <div class="tableContainer">
       ${tableHTML(tablePages[tablePageIndex])}
     </div>`;
+
+  // Counter update for table playback
+  const totalPages = tablePages.length || 1;
+  const pageNo = Math.min(tablePageIndex + 1, totalPages);
+  counter.textContent = `TABLE ${pageNo}/${totalPages}`;
 }
 
 function tableHTML(rows) {
+  const headers = ["Item", "Type", "Base Price", "Current Bid", "Name of Bidder", "Status"];
+
   return `
     <table class="auctionTable">
+      <thead>
+        <tr>
+          ${headers.map(h => `<th>${h}</th>`).join("")}
+        </tr>
+      </thead>
       <tbody>
-        ${rows.map(r => `
+        ${rows
+          .map(
+            r => `
           <tr>
-            <td>${r.Item}</td>
-            <td>${r.Type}</td>
-            <td>${r["Base Price"]}</td>
-            <td>${r["Current Bid"]}</td>
-            <td>${r["Name of Bidder"]}</td>
-            <td>${r.Status}</td>
-          </tr>`).join("")}
+            <td>${r.Item || ""}</td>
+            <td>${r.Type || ""}</td>
+            <td>${r["Base Price"] || ""}</td>
+            <td>${r["Current Bid"] || ""}</td>
+            <td>${r["Name of Bidder"] || ""}</td>
+            <td>${r.Status || ""}</td>
+          </tr>`
+          )
+          .join("")}
       </tbody>
     </table>`;
 }
@@ -442,5 +437,138 @@ function tableHTML(rows) {
 function highlightRow() {
   const rows = document.querySelectorAll(".auctionTable tbody tr");
   rows.forEach(r => r.classList.remove("active"));
-  if (rows[rowIndex]) rows[rowIndex].classList.add("active");
+  if (rows[rowIndex]) {
+    rows[rowIndex].classList.add("active");
+
+    // Smooth-scroll inside the fixed table holder (not the whole page)
+    const container = document.querySelector(".tableContainer");
+    if (container) {
+      const r = rows[rowIndex];
+      const target = r.offsetTop - (container.clientHeight / 2) + (r.clientHeight / 2);
+      container.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
+    } else {
+      rows[rowIndex].scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }
+}
+
+function imageExists(src) {
+  return new Promise(r => {
+    const i = new Image();
+    i.onload = () => r(true);
+    i.onerror = () => r(false);
+    i.src = src;
+  });
+}
+
+/**************************************************
+ * GOOGLE SHEET LOADING (CORS-SAFE)
+ * - First tries fetch(csvUrl)
+ * - If blocked, falls back to GViz via <script> (no CORS)
+ **************************************************/
+function parseGoogleSheetUrl(url) {
+  const out = { sheetId: null, gid: null };
+  const m = String(url || "").match(/\/d\/([a-zA-Z0-9-_]+)/);
+  if (m) out.sheetId = m[1];
+  const g = String(url || "").match(/[?&]gid=(\d+)/);
+  if (g) out.gid = g[1];
+  return out;
+}
+
+async function loadSheetRows({ sheetId, gid, csvUrl }) {
+  if (!sheetId) throw new Error("Missing sheetId");
+
+  // 1) Try direct fetch of CSV (works on some hosted setups)
+  try {
+    const res = await fetch(csvUrl, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+    const text = (await res.text()).trim();
+
+    // If Google returns HTML interstitial/login page
+    if (!text || /^<!doctype\s+html/i.test(text) || /<html/i.test(text)) {
+      throw new Error("Google returned HTML instead of CSV");
+    }
+
+    const lines = text.split(/\r?\n/);
+    if (lines.length < 2) throw new Error("CSV has only header or no data");
+
+    return parseCSV(text);
+  } catch (e) {
+    // If it's a CORS/network-style failure, try GViz script fallback.
+    const msg = (e && e.message) ? e.message : String(e);
+    if (!/failed to fetch|networkerror|typeerror/i.test(msg)) {
+      // Non-network error: still try GViz once, then rethrow if needed.
+    }
+  }
+
+  // 2) GViz script fallback (works cross-origin)
+  const gvizUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?${gid ? `gid=${gid}&` : ""}tqx=out:json`;
+  const resp = await loadGvizViaScript(gvizUrl);
+  const rows = gvizResponseToRows(resp);
+  if (!rows.length) throw new Error("GViz returned no rows (sheet empty or inaccessible)");
+  return rows;
+}
+
+function loadGvizViaScript(src) {
+  return new Promise((resolve, reject) => {
+    // Ensure namespace exists; GViz response calls google.visualization.Query.setResponse(...)
+    window.google = window.google || {};
+    window.google.visualization = window.google.visualization || {};
+    window.google.visualization.Query = window.google.visualization.Query || {};
+
+    let done = false;
+
+    // Install a one-time handler
+    window.google.visualization.Query.setResponse = (resp) => {
+      done = true;
+      cleanup();
+      resolve(resp);
+    };
+
+    const s = document.createElement("script");
+    s.src = src;
+    s.async = true;
+
+    const timeout = setTimeout(() => {
+      if (done) return;
+      cleanup();
+      reject(new Error("Timeout loading Google Sheet (GViz)") );
+    }, 10000);
+
+    function cleanup() {
+      clearTimeout(timeout);
+      if (s && s.parentNode) s.parentNode.removeChild(s);
+    }
+
+    s.onerror = () => {
+      if (done) return;
+      cleanup();
+      reject(new Error("Failed to load Google Sheet (GViz script error)"));
+    };
+
+    document.head.appendChild(s);
+  });
+}
+
+function gvizResponseToRows(resp) {
+  if (!resp || resp.status !== "ok" || !resp.table) {
+    throw new Error("GViz response not ok (sheet may be protected/blocked)");
+  }
+
+  const cols = resp.table.cols || [];
+  const headers = cols.map((c, i) => (c && c.label ? c.label.trim() : `COL_${i + 1}`));
+  const out = [];
+
+  const rws = resp.table.rows || [];
+  for (const r of rws) {
+    const obj = {};
+    const cells = (r && r.c) ? r.c : [];
+    headers.forEach((h, idx) => {
+      const cell = cells[idx];
+      const val = cell ? (cell.f != null ? cell.f : (cell.v != null ? String(cell.v) : "")) : "";
+      obj[h] = val;
+    });
+    out.push(obj);
+  }
+  return out;
 }
