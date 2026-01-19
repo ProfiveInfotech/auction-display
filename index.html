@@ -4,102 +4,13 @@
 <meta charset="UTF-8">
 <title>Auction Display</title>
 
-<style>
-/* ================= GLOBAL ================= */
-body {
-    margin: 0;
-    background: #000;
-    color: #fff;
-    font-family: system-ui, Arial, sans-serif;
-    overflow: hidden;
-}
-
-/* ================= TOP BAR ================= */
-#topbar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 54px;
-    background: #111;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 0 14px;
-    z-index: 100;
-}
-
-button {
-    background: #222;
-    color: #fff;
-    border: 1px solid #333;
-    padding: 6px 12px;
-    cursor: pointer;
-}
-button:hover { background: #333; }
-
-#counter {
-    margin-left: auto;
-    font-weight: bold;
-}
-
-#countdown {
-    width: 50px;
-    text-align: center;
-    font-size: 20px;
-    font-weight: bold;
-    color: #00ffcc;
-}
-
-/* ================= STAGE ================= */
-#stage {
-    position: absolute;
-    top: 54px;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* ================= IMAGE SLIDE ================= */
-.slide-img {
-    max-width: 95%;
-    max-height: 95%;
-}
-
-/* ================= TABLE SLIDE ================= */
-table {
-    width: 90%;
-    border-collapse: collapse;
-    font-size: 18px;
-}
-
-th, td {
-    border: 1px solid #333;
-    padding: 8px;
-    text-align: center;
-}
-
-thead {
-    background: #111;
-}
-
-tbody tr.active {
-    background: #003cff;
-    animation: flicker 1s infinite alternate;
-}
-
-@keyframes flicker {
-    from { background: #003cff; }
-    to   { background: #0059ff; }
-}
-</style>
+<!-- Correct: external CSS -->
+<link rel="stylesheet" href="Styles.css">
 </head>
 
 <body>
 
+<!-- Slideshow UI already exists -->
 <div id="topbar">
     <button onclick="prevSlide()">⏮ Prev</button>
     <button onclick="togglePause()">⏯ Pause</button>
@@ -112,150 +23,26 @@ tbody tr.active {
 
 <div id="stage"></div>
 
+<!-- Correct: external JS -->
+<script src="app.js"></script>
+
 <script>
 /*********************************************************
- * GLOBAL STATE
- *********************************************************/
-let slides = [];
-let index = 0;
-let slideTimer = null;
-let countdownTimer = null;
-let paused = false;
-let remainingSeconds = 0;
-
-/*********************************************************
- * DURATIONS (seconds)
- *********************************************************/
-const IMAGE_DURATION = 5;
-const TABLE_DURATION = 10;
-
-/*********************************************************
- * INIT
+ * ENTRY GATE — THIS IS THE ONLY REQUIRED CHANGE
  *********************************************************/
 document.addEventListener("DOMContentLoaded", () => {
-    // slides MUST already be prepared here
-    // This file only restores behavior
-    slides = window.AUCTION_SLIDES || [];
-    if (!slides.length) return;
 
-    renderSlide();
-    startSlideTimer();
+    // This flag MUST already be set by Link Your Data page
+    const isLinked = localStorage.getItem("AUCTION_DATA_LINKED");
+
+    if (!isLinked) {
+        // HARD redirect — no black screen ever
+        window.location.href = "link.html";
+        return;
+    }
+
+    // If linked, normal auction init continues inside app.js
 });
-
-/*********************************************************
- * RENDER
- *********************************************************/
-function renderSlide() {
-    const stage = document.getElementById("stage");
-    stage.innerHTML = "";
-
-    const slide = slides[index];
-    document.getElementById("counter").textContent =
-        `${index + 1} / ${slides.length}`;
-
-    if (slide.type === "image") {
-        const img = document.createElement("img");
-        img.src = slide.src;
-        img.className = "slide-img";
-        stage.appendChild(img);
-        startCountdown(IMAGE_DURATION);
-    }
-
-    if (slide.type === "table") {
-        const table = document.createElement("table");
-        table.innerHTML = slide.html;
-        stage.appendChild(table);
-        animateRows(table);
-        startCountdown(TABLE_DURATION);
-    }
-}
-
-/*********************************************************
- * ROW HIGHLIGHT (RESTORED)
- *********************************************************/
-function animateRows(table) {
-    const rows = table.querySelectorAll("tbody tr");
-    let i = 0;
-
-    rows.forEach(r => r.classList.remove("active"));
-
-    const interval = setInterval(() => {
-        rows.forEach(r => r.classList.remove("active"));
-        if (i < rows.length) {
-            rows[i].classList.add("active");
-            i++;
-        } else {
-            clearInterval(interval);
-        }
-    }, 1000);
-}
-
-/*********************************************************
- * SLIDE TIMER
- *********************************************************/
-function startSlideTimer() {
-    clearTimeout(slideTimer);
-    const duration =
-        slides[index].type === "image"
-        ? IMAGE_DURATION
-        : TABLE_DURATION;
-
-    slideTimer = setTimeout(() => {
-        if (!paused) nextSlide();
-    }, duration * 1000);
-}
-
-/*********************************************************
- * COUNTDOWN (5 4 3 2 1)
- *********************************************************/
-function startCountdown(seconds) {
-    clearInterval(countdownTimer);
-    remainingSeconds = seconds;
-    updateCountdown();
-
-    countdownTimer = setInterval(() => {
-        if (!paused) {
-            remainingSeconds--;
-            updateCountdown();
-            if (remainingSeconds <= 0) {
-                clearInterval(countdownTimer);
-            }
-        }
-    }, 1000);
-}
-
-function updateCountdown() {
-    document.getElementById("countdown").textContent =
-        remainingSeconds > 0 ? remainingSeconds : "–";
-}
-
-/*********************************************************
- * CONTROLS (RESTORED)
- *********************************************************/
-function nextSlide() {
-    index = (index + 1) % slides.length;
-    renderSlide();
-    startSlideTimer();
-}
-
-function prevSlide() {
-    index = (index - 1 + slides.length) % slides.length;
-    renderSlide();
-    startSlideTimer();
-}
-
-function togglePause() {
-    paused = !paused;
-    if (paused) {
-        clearTimeout(slideTimer);
-    } else {
-        startSlideTimer();
-    }
-}
-
-function refresh() {
-    location.reload();
-}
 </script>
 
 </body>
