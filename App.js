@@ -395,24 +395,35 @@ function drawTablePage() {
 }
 
 function tableHTML(rows) {
+  const headers = ["Item", "Type", "Base Price", "Current Bid", "Name of Bidder", "Status"];
+
   return `
     <table class="auctionTable">
+      <thead>
+        <tr>
+          ${headers.map(h => `<th>${h}</th>`).join("")}
+        </tr>
+      </thead>
       <tbody>
-        ${rows.map(r => `
+        ${rows
+          .map(
+            r => `
           <tr>
-            <td>${r.Item}</td>
-            <td>${r.Type}</td>
-            <td>${r["Base Price"]}</td>
-            <td>${r["Current Bid"]}</td>
-            <td>${r["Name of Bidder"]}</td>
-            <td>${r.Status}</td>
-          </tr>`).join("")}
+            <td>${r.Item || ""}</td>
+            <td>${r.Type || ""}</td>
+            <td>${r["Base Price"] || ""}</td>
+            <td>${r["Current Bid"] || ""}</td>
+            <td>${r["Name of Bidder"] || ""}</td>
+            <td>${r.Status || ""}</td>
+          </tr>`
+          )
+          .join("")}
       </tbody>
     </table>`;
 }
-
 function highlightRow() {
   const rows = document.querySelectorAll(".auctionTable tbody tr");
   rows.forEach(r => r.classList.remove("active"));
   if (rows[rowIndex]) rows[rowIndex].classList.add("active");
 }
+
