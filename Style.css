@@ -156,29 +156,21 @@ body {
   z-index: 1000;
 }
 
-.startCard {
-  background: linear-gradient(180deg, #020617, #01040a);
-  border: 2px solid #facc15;
-  border-radius: 20px;
-  padding: 50px 70px;
-  text-align: center;
-}
-
-.startTitle {
-  margin: 0;
-  font-size: 2.6rem;
-  font-weight: 900;
-  color: #facc15;
-}
-
+/* Button rows */
 .startButtons {
   display: flex;
-  gap: 20px;
+  gap: 24px;
   justify-content: center;
+  align-items: center;
 }
-.setupStage,
+
+/* ✅ DEFAULT VISIBILITY (THIS IS THE FIX) */
+.setupStage {
+  display: flex;   /* Upload + Link ALWAYS visible initially */
+}
+
 .actionStage {
-  display: none;
+  display: none;   /* Shown later explicitly */
 }
 
 /* ================= BUTTONS ================= */
@@ -204,310 +196,48 @@ body {
   border: 1px solid #334155;
 }
 
-/* ======================================================
-   ✅ CLEAN TABLE SYSTEM (NEW – SIMPLE & FINAL)
-   ====================================================== */
+/* ================= TABLE SYSTEM ================= */
 
 .tableContainer {
   width: 100%;
   height: 100%;
   padding: 12px;
-  /* Allow vertical scrolling so the highlighted row can move through records */
   overflow: auto;
   scroll-behavior: smooth;
 }
 
 .auctionTable {
   width: 100%;
-  height: 100%;
   border-collapse: collapse;
   table-layout: fixed;
-  /* Slightly larger so it's readable from distance */
   font-size: 0.95rem;
 }
 
-/* Header – bold, high contrast, separated */
 .auctionTable thead th {
   position: sticky;
   top: 0;
   z-index: 5;
-
-  color: #0b1220;
   background: linear-gradient(180deg, #facc15, #eab308);
-  border-bottom: 2px solid rgba(250, 204, 21, 0.95);
-
+  color: #0b1220;
   padding: 10px 8px;
-  text-align: center;
   font-weight: 900;
-  letter-spacing: 0.6px;
   text-transform: uppercase;
 }
 
 .auctionTable tbody td {
-  padding: 8px 8px;
+  padding: 8px;
   border-bottom: 1px solid var(--border);
-  border-right: 1px solid rgba(30, 41, 59, 0.6);
   text-align: center;
-  color: var(--text);
   white-space: nowrap;
 }
 
-/* Zebra stripes to improve scanability */
-.auctionTable tbody tr:nth-child(odd) {
-  background: rgba(2, 6, 23, 0.35);
-}
-.auctionTable tbody tr:nth-child(even) {
-  background: rgba(15, 23, 42, 0.22);
-}
-/* =========================================================
-   TOP BAR BUTTON STYLE FIX (REFRESH / PAUSE / RESUME)
-   ========================================================= */
-
-.topControls {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.topControls button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-
-  background: linear-gradient(135deg, #1f2937, #020617);
-  color: #e5e7eb;
-
-  border: 1px solid #374151;
-  border-radius: 8px;
-
-  padding: 8px 14px;
-  font-size: 0.9rem;
-  font-weight: 600;
-
-  cursor: pointer;
-  transition:
-    background 0.2s ease,
-    border-color 0.2s ease,
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
-}
-
-.topControls button:hover {
-  background: linear-gradient(135deg, #374151, #020617);
-  border-color: #facc15;
-  box-shadow: 0 0 10px rgba(250, 204, 21, 0.25);
-  transform: translateY(-1px);
-}
-
-.topControls button:active {
-  transform: translateY(0);
-  box-shadow: none;
-}
-/* =========================================================
-   FINAL CLEAR TABLE RESET – SIMPLE & READABLE
-   ========================================================= */
-
-/* Force table mode to be simple */
-.stage.table-mode {
-  display: block !important;
-  overflow: hidden !important;
-}
-
-/* Simple container – no glow, no centering */
-.stage.table-mode .tableContainer,
-.stage.table-mode .tableFullScreen {
-  width: 100% !important;
-  height: 100% !important;
-  padding: 10px !important;
-  margin: 0 !important;
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-}
-
-/* Plain table */
-.stage.table-mode table,
-.stage.table-mode .auctionTable {
-  width: 100% !important;
-  border-collapse: collapse !important;
-  table-layout: fixed !important;
-  /* Keep table readable in table-mode */
-  font-size: 1rem !important;
-  background: transparent !important;
-  transform: none !important;
-}
-
-/* Header – clean and sharp */
-.stage.table-mode thead th {
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 5 !important;
-
-  padding: 10px 8px !important;
-  color: #0b1220 !important;
-  font-weight: 900 !important;
-  letter-spacing: 0.6px !important;
-  text-transform: uppercase !important;
-  text-align: center !important;
-
-  background: linear-gradient(180deg, #facc15, #eab308) !important;
-  border-bottom: 2px solid rgba(250, 204, 21, 0.95) !important;
-}
-
-/* Body cells – dense */
-.stage.table-mode tbody td {
-  padding: 8px 8px !important;
-  border-bottom: 1px solid #1e293b !important;
-  border-right: 1px solid rgba(30, 41, 59, 0.6) !important;
-  color: #e5e7eb !important;
-  text-align: center !important;
-  white-space: nowrap !important;
-}
-
-/* Remove ALL row effects */
-.stage.table-mode tbody tr {
-  background: transparent !important;
-  animation: none !important;
-  box-shadow: none !important;
-}
-
-/* Kill hover glow only (keep .active highlight visible) */
-.stage.table-mode tbody tr:hover {
-  background: rgba(250, 204, 21, 0.10) !important;
-}
-/* =========================================================
-   ALLOW TABLE TO USE FULL VIEWPORT HEIGHT
-   ========================================================= */
-
-/* When table is visible, keep a FIXED holder height so the container can scroll */
-.stage.table-mode {
-  height: calc(100vh - 150px) !important; /* 70 topbar + 80 controls */
-  min-height: 0 !important;
-  overflow: hidden !important;
-}
-
-/* Allow app to grow */
-#app:has(.stage.table-mode) {
-  grid-template-rows: 70px auto 80px;
-}
-/* =====================================================
-   TABLE ROW HIGHLIGHT — GUARANTEED VISIBILITY
-   ===================================================== */
-
 .auctionTable tbody tr.active {
-  background: rgba(250, 204, 21, 0.25) !important;
+  background: rgba(250, 204, 21, 0.25);
   box-shadow: inset 0 0 0 2px #facc15;
-  color: #fff;
-}
-
-.auctionTable tbody tr.active td {
   font-weight: 800;
 }
-/* =====================================================
-   COUNTER SIZE FIX (TABLE MODE)
-   ===================================================== */
 
-.stage.table-mode ~ .slideCounter,
-.slideCounter {
-  font-size: 0.75rem;
-  padding: 4px 8px;
-  opacity: 0.85;
-}
-/* =====================================================
-   LIVE BROADCAST INDICATOR
-   ===================================================== */
-
-.liveHeader {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-/* Container */
-.liveIndicator {
-  position: relative;
-  width: 14px;
-  height: 14px;
-}
-
-/* Solid green dot */
-.liveDot {
-  position: absolute;
-  inset: 0;
-  background: #22c55e; /* green */
-  border-radius: 50%;
-  z-index: 2;
-  box-shadow: 0 0 6px rgba(34, 197, 94, 0.8);
-}
-
-/* Pulsing ring */
-.liveRing {
-  position: absolute;
-  inset: -6px;
-  border-radius: 50%;
-  border: 2px solid rgba(34, 197, 94, 0.6);
-  animation: livePulse 1.6s ease-out infinite;
-}
-
-/* Pulse animation */
-@keyframes livePulse {
-  0% {
-    transform: scale(0.4);
-    opacity: 1;
-  }
-  70% {
-    transform: scale(1.2);
-    opacity: 0;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-/* =====================================================
-   LINK YOUR DATA — START SCREEN
-   ===================================================== */
-
-/* Primary Link Button */
-#linkDataBtn {
-  min-width: 260px;
-  padding: 18px 36px;
-  font-size: 1.15rem;
-  font-weight: 800;
-  border-radius: 14px;
-  cursor: pointer;
-  border: none;
-  color: #020617;
-
-  background: linear-gradient(135deg, #facc15, #eab308);
-  box-shadow:
-    0 0 25px rgba(250, 204, 21, 0.45),
-    0 25px 60px rgba(0,0,0,0.6);
-
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-/* Hover effect */
-#linkDataBtn:hover {
-  transform: scale(1.08);
-  box-shadow:
-    0 0 35px rgba(250, 204, 21, 0.75),
-    0 35px 80px rgba(0,0,0,0.8);
-}
-
-/* Click feedback */
-#linkDataBtn:active {
-  transform: scale(1.02);
-}
-
-/* Secondary buttons spacing polish */
-#actionButtons .btn {
-  min-width: 220px;
-}
-/* =====================================================
-   CUSTOM WARNING MODAL (REPLACES alert())
-   ===================================================== */
+/* ================= MODAL ================= */
 
 .warningOverlay {
   position: fixed;
@@ -526,25 +256,7 @@ body {
   padding: 36px 42px;
   min-width: 360px;
   text-align: center;
-  box-shadow:
-    0 0 30px rgba(250,204,21,0.35),
-    0 40px 120px rgba(0,0,0,0.9);
 }
-
-.warningTitle {
-  font-size: 1.4rem;
-  font-weight: 900;
-  color: #facc15;
-  margin-bottom: 14px;
-}
-
-.warningText {
-  font-size: 1rem;
-  color: #e5e7eb;
-  margin-bottom: 26px;
-  line-height: 1.4;
-}
-/* ================= LINK INPUT ================= */
 
 .sheetInput {
   width: 100%;
@@ -554,17 +266,6 @@ body {
   border: 1px solid #334155;
   background: #020617;
   color: #e5e7eb;
-  font-size: 0.95rem;
-}
-
-.sheetInput::placeholder {
-  color: #64748b;
-}
-
-.sheetInput:focus {
-  outline: none;
-  border-color: #facc15;
-  box-shadow: 0 0 0 2px rgba(250,204,21,0.25);
 }
 
 .modalActions {
@@ -572,41 +273,3 @@ body {
   gap: 16px;
   justify-content: center;
 }
-/* =====================================================
-   START SCREEN — FIXED CENTER LAYOUT
-   ===================================================== */
-
-.startScreen {
-  position: fixed;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  background: radial-gradient(circle at top, #020617, #000);
-  z-index: 1000;
-}
-
-/* Common button row */
-.startButtons {
-  display: flex;
-  gap: 24px;
-  justify-content: center;
-}
-
-/* Hide action stage by default */
-.actionStage {
-  display: none;
-}
-
-/* When sheet is linked → show action stage */
-body.sheet-linked .setupStage {
-  display: none;
-}
-
-body.sheet-linked .actionStage {
-  display: flex;
-}
-/* =====================================================
-   FIX: CENTER START SCREEN BUTTONS PERFECTLY
-   ===================================================== */
-
-
