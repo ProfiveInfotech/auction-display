@@ -37,8 +37,12 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 32px;
-  background: linear-gradient(to right, #020617, #050b18);
+  padding: 8px 32px;
+  background: linear-gradient(
+    to bottom,
+    rgba(2,6,23,0.9),
+    rgba(2,6,23,0.75)
+  );
   border-bottom: 1px solid var(--border);
 }
 
@@ -53,96 +57,10 @@ body {
   display: grid;
   grid-template-columns: 62% 38%;
   height: calc(100vh - 150px);
-  min-height: 0;
 }
 
 .stage.table-mode {
   grid-template-columns: 1fr;
-}
-
-/* ================= Image Area ================= */
-
-.imageWrapper {
-  height: 100%;
-  width: 100%;
-  background: black;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-
-.imageWrapper img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-
-/* ================= Info Panel ================= */
-
-.infoPanel {
-  background: var(--panel);
-  border-left: 1px solid var(--border);
-  padding: 36px;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.block {
-  margin-bottom: 26px;
-}
-
-.label {
-  font-size: .9rem;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.value {
-  font-size: 1.8rem;
-  font-weight: 600;
-}
-
-.currentBid {
-  font-weight: 900;
-  color: #22c55e;
-}
-
-/* ================= CONTROLS ================= */
-
-.controls {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 40px;
-  border-top: 1px solid var(--border);
-  background: #020617;
-}
-
-.controls button {
-  background: var(--gold);
-  border: none;
-  padding: 12px 28px;
-  border-radius: 12px;
-  font-weight: 700;
-  font-size: 1rem;
-  cursor: pointer;
-}
-
-/* ================= Counter ================= */
-
-.slideCounter {
-  position: fixed;
-  bottom: 18px;
-  left: 18px;
-  font-size: 1.1rem;
-  color: var(--muted);
-  background: rgba(0,0,0,.6);
-  padding: 6px 12px;
-  border-radius: 8px;
 }
 
 /* ================= START SCREEN ================= */
@@ -150,89 +68,129 @@ body {
 .startScreen {
   position: fixed;
   inset: 0;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: radial-gradient(circle at top, #020617, #000);
   z-index: 1000;
 }
 
-/* Button rows */
 .startButtons {
+  background: linear-gradient(180deg, #020617, #01040a);
+  border: 2px solid #facc15;
+  border-radius: 22px;
+  padding: 48px 64px;
+
   display: flex;
-  gap: 24px;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+
+  box-shadow:
+    0 0 30px rgba(250, 204, 21, 0.25),
+    0 40px 120px rgba(0,0,0,0.9);
+
+  animation: fadeInUp 0.35s ease-out;
+}
+
+/* DEFAULT VISIBILITY */
+.setupStage {
+  display: flex;
+  flex-direction: column;
   align-items: center;
 }
 
-/* ✅ DEFAULT VISIBILITY (THIS IS THE FIX) */
-.setupStage {
-  display: flex;   /* Upload + Link ALWAYS visible initially */
+.actionStage {
+  display: none;
+  flex-direction: column;
+  align-items: center;
 }
 
-.actionStage {
-  display: none;   /* Shown later explicitly */
+/* ✅ REQUIRED STATE TOGGLE (THIS WAS MISSING) */
+body.sheet-linked .setupStage {
+  display: none;
+}
+
+body.sheet-linked .actionStage {
+  display: flex;
 }
 
 /* ================= BUTTONS ================= */
 
 .btn {
+  min-width: 280px;
   padding: 14px 26px;
   font-size: 1rem;
   font-weight: 700;
   border-radius: 12px;
   cursor: pointer;
   border: none;
-  min-width: 180px;
+  text-align: center;
 }
 
 .btn.primary {
   background: linear-gradient(135deg, #facc15, #eab308);
   color: #020617;
+  box-shadow: 0 8px 30px rgba(250,204,21,0.35);
 }
 
 .btn.secondary {
-  background: #020617;
+  background: rgba(2,6,23,0.85);
+  border: 1px solid rgba(148,163,184,0.25);
   color: #e5e7eb;
-  border: 1px solid #334155;
 }
 
-/* ================= TABLE SYSTEM ================= */
+/* ================= TOP CONTROLS ================= */
+
+.topControls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.topControls button {
+  background: rgba(2,6,23,0.6);
+  border: 1px solid rgba(148,163,184,0.25);
+  color: #e5e7eb;
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.topControls button:hover {
+  border-color: rgba(250,204,21,0.6);
+  box-shadow: 0 0 0 1px rgba(250,204,21,0.25);
+}
+
+/* ================= TABLE ================= */
 
 .tableContainer {
   width: 100%;
   height: 100%;
   padding: 12px;
   overflow: auto;
-  scroll-behavior: smooth;
 }
 
 .auctionTable {
   width: 100%;
   border-collapse: collapse;
-  table-layout: fixed;
-  font-size: 0.95rem;
 }
 
 .auctionTable thead th {
-  position: sticky;
-  top: 0;
-  z-index: 5;
   background: linear-gradient(180deg, #facc15, #eab308);
   color: #0b1220;
-  padding: 10px 8px;
-  font-weight: 900;
+  padding: 10px;
   text-transform: uppercase;
 }
 
 .auctionTable tbody td {
   padding: 8px;
-  border-bottom: 1px solid var(--border);
   text-align: center;
-  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
 }
 
 .auctionTable tbody tr.active {
-  background: rgba(250, 204, 21, 0.25);
+  background: rgba(250,204,21,0.25);
   box-shadow: inset 0 0 0 2px #facc15;
   font-weight: 800;
 }
@@ -255,12 +213,10 @@ body {
   border-radius: 18px;
   padding: 36px 42px;
   min-width: 360px;
-  text-align: center;
 }
 
 .sheetInput {
   width: 100%;
-  margin: 20px 0 26px;
   padding: 14px 16px;
   border-radius: 12px;
   border: 1px solid #334155;
@@ -273,184 +229,10 @@ body {
   gap: 16px;
   justify-content: center;
 }
-/* =====================================================
-   START SCREEN – PROFESSIONAL CENTERED PANEL (UI ONLY)
-   ===================================================== */
 
-.startScreen {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Center card */
-.startScreen::before {
-  content: "";
-}
-
-/* Unified panel */
-.startButtons {
-  background: linear-gradient(180deg, #020617, #01040a);
-  border: 2px solid #facc15;
-  border-radius: 22px;
-  padding: 48px 64px;
-
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 22px;
-
-  box-shadow:
-    0 0 30px rgba(250, 204, 21, 0.25),
-    0 40px 120px rgba(0,0,0,0.9);
-}
-
-/* Keep rows aligned */
-.setupStage,
-.actionStage {
-  flex-direction: column;
-  align-items: center;
-}
-
-/* Button width consistency */
-.startButtons .btn {
-  min-width: 280px;
-  text-align: center;
-}
-
-/* Subtle separation when both stages exist */
-.actionStage {
-  margin-top: 10px;
-}
-
-/* Smooth appearance (no logic impact) */
-.startButtons {
-  animation: fadeInUp 0.35s ease-out;
-}
+/* ================= ANIMATION ================= */
 
 @keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(14px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-/* =====================================================
-   FORCE START PANEL TO TRUE SCREEN CENTER
-   ===================================================== */
-
-.startScreen {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Anchor the card visually to center */
-.startButtons {
-  position: relative;
-  top: 0;
-  transform: translateY(0);
-}
-
-/* Optical centering tweak (important) */
-body.sheet-linked .startButtons {
-  transform: translateY(-10px);
-}
-/* =====================================================
-   TOP BAR CONTROLS — OPTICAL CENTER FIX
-   ===================================================== */
-
-.topbar {
-  padding-top: 8px;
-  padding-bottom: 8px;
-}
-
-.topControls {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-/* Optical vertical correction */
-.topControls button {
-  transform: translateY(1px);
-}
-
-/* Keep hover animation intact */
-.topControls button:hover {
-  transform: translateY(0);
-}
-
-/* =====================================================
-   START / ACTION CARD — BROADCAST THEME
-   ===================================================== */
-
-/* Replace harsh border with soft glow frame */
-#actionButtons {
-  background: linear-gradient(180deg, rgba(2,6,23,0.95), rgba(2,6,23,0.85));
-  padding: 40px 48px;
-  border-radius: 22px;
-
-  border: 1px solid rgba(250, 204, 21, 0.25);
-  box-shadow:
-    0 0 0 1px rgba(250,204,21,0.15),
-    0 30px 80px rgba(0,0,0,0.85);
-}
-
-/* Subtle ambient glow, not neon */
-#actionButtons::before {
-  content: "";
-  position: absolute;
-  inset: -12px;
-  border-radius: 26px;
-  background: radial-gradient(circle, rgba(250,204,21,0.12), transparent 70%);
-  z-index: -1;
-}
-
-/* =====================================================
-   BUTTON HIERARCHY — CLEAN & PREMIUM
-   ===================================================== */
-
-/* Secondary buttons = dark glass */
-#actionButtons .btn.secondary {
-  background: rgba(2,6,23,0.85);
-  border: 1px solid rgba(148,163,184,0.25);
-  color: #e5e7eb;
-}
-
-/* Primary button = confident, not flashy */
-#actionButtons .btn.primary {
-  background: linear-gradient(135deg, #facc15, #eab308);
-  box-shadow:
-    0 8px 30px rgba(250,204,21,0.35);
-}
-
-/* =====================================================
-   TOP CONTROLS — BROADCAST OPERATOR STYLE
-   ===================================================== */
-
-.topbar {
-  background: linear-gradient(
-    to bottom,
-    rgba(2,6,23,0.9),
-    rgba(2,6,23,0.75)
-  );
-}
-
-/* Reduce visual noise */
-.topControls button {
-  background: rgba(2,6,23,0.6);
-  border: 1px solid rgba(148,163,184,0.25);
-  box-shadow: none;
-}
-
-/* Gentle hover, no glow spam */
-.topControls button:hover {
-  border-color: rgba(250,204,21,0.6);
-  box-shadow: 0 0 0 1px rgba(250,204,21,0.25);
-}
-
-
