@@ -601,5 +601,31 @@ body.sheet-linked .setupStage {
 body.sheet-linked .actionStage {
   display: flex;
 }
+/* =====================================================
+   FIX: CENTER START SCREEN BUTTONS PERFECTLY
+   ===================================================== */
+
+.startScreen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Stack buttons nicely in center */
+.startButtons {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Ensure both stages occupy same centered space */
+.setupStage,
+.actionStage {
+  min-height: 120px;
+}
+
 
 
