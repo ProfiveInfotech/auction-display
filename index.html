@@ -8,21 +8,19 @@
 </head>
 <body>
 
-<!-- ===== START SCREEN ===== -->
+<!-- ===== START / SETUP SCREEN ===== -->
 <div id="startScreen">
 
-  <div class="startButtons" id="linkButtons">
-    <button id="linkDataBtn" class="btn primary">
-      🔗 Link Your Data
-    </button>
-  </div>
-
-  <div class="startButtons" id="actionButtons" style="display:none;">
-    <button id="openSheetBtn" class="btn secondary">
-      📊 Open Master Data
+  <div class="startButtons" id="setupButtons">
+    <button id="uploadImagesBtn" class="btn secondary">
+      🖼 Upload Images
     </button>
 
-    <button id="startAuctionBtn" class="btn primary">
+    <button id="linkDataBtn" class="btn secondary" disabled>
+      🔗 Link Google Sheet
+    </button>
+
+    <button id="startAuctionBtn" class="btn primary" disabled>
       ▶ Start Auction
     </button>
   </div>
@@ -41,6 +39,7 @@
     </h1>
 
     <div class="topControls">
+      <button id="backBtn">⬅ Back</button>
       <button id="refreshBtn">🔄 Refresh</button>
       <button id="pauseBtn">⏸ Pause</button>
       <button id="resumeBtn" style="display:none;">▶ Resume</button>
@@ -57,16 +56,10 @@
   <div id="counter" class="slideCounter"></div>
 </div>
 
-<!-- ===== LINK GOOGLE SHEET MODAL ===== -->
-<div id="warningModal" class="warningOverlay" style="display:none;">
+<!-- ===== LINK SHEET MODAL ===== -->
+<div id="sheetModal" class="warningOverlay" style="display:none;">
   <div class="warningBox">
-
     <div class="warningTitle">🔗 Link Google Sheet</div>
-
-    <div class="warningText">
-      Paste your Google Sheet link below.<br />
-      We will safely extract the Sheet ID.
-    </div>
 
     <input
       id="sheetLinkInput"
@@ -76,19 +69,12 @@
     />
 
     <div class="modalActions">
-      <button id="linkConfirmBtn" class="btn primary">
-        ✅ Link Data
-      </button>
-      <button id="warningOkBtn" class="btn secondary">
-        Cancel
-      </button>
+      <button id="confirmSheetBtn" class="btn primary">Confirm</button>
+      <button id="cancelSheetBtn" class="btn secondary">Cancel</button>
     </div>
-
   </div>
 </div>
 
 <script src="App.js"></script>
 </body>
 </html>
-
-
