@@ -212,10 +212,18 @@ backBtn.onclick = () => {
   stopAllTimers();
   stopBidFlicker();
   paused = false;
+
+  // 🔁 Reset app stage
   APP_STAGE = "LINK";
   localStorage.setItem("APP_STAGE", "LINK");
+
+  // ✅ CRITICAL: reset UI state
+  document.body.classList.remove("sheet-linked");
+
+  // Optional but correct UX
+  startAuctionBtn.disabled = true;
+
   initUI();
-  showSetupStage();
 };
 
 refreshBtn.onclick = loadData;
@@ -454,6 +462,7 @@ function hardResetApp() {
   indexedDB.deleteDatabase("auction_images_db");
   location.reload();
 }
+
 
 
 
