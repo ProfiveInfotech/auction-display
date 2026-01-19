@@ -417,3 +417,4 @@ function highlightRow() {
   rows.forEach(r => r.classList.remove("active"));
   if (rows[rowIndex]) rows[rowIndex].classList.add("active");
 }
+
