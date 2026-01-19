@@ -435,5 +435,11 @@ function highlightRow() {
   if (rows[rowIndex]) rows[rowIndex].classList.add("active");
 }
 
+function hardResetApp() {
+  localStorage.clear();
+  indexedDB.deleteDatabase("auction_images_db");
+  location.reload();
+}
+
 
 
