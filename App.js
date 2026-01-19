@@ -1,70 +1,43 @@
 /**************************************************
- * INDEXED DB (IMAGES)
+ * GOOGLE SHEET
  **************************************************/
-const DB_NAME = "auction_images";
-const STORE = "images";
-
-function openDB() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
-    req.onupgradeneeded = e => {
-      e.target.result.createObjectStore(STORE);
-    };
-    req.onsuccess = e => resolve(e.target.result);
-    req.onerror = () => reject();
-  });
-}
-
-async function saveImages(files) {
-  const db = await openDB();
-  const tx = db.transaction(STORE, "readwrite");
-  const store = tx.objectStore(STORE);
-  files.forEach(f => store.put(f, f.name.split(".")[0]));
-}
-
-async function loadImages() {
-  const db = await openDB();
-  const tx = db.transaction(STORE, "readonly");
-  const store = tx.objectStore(STORE);
-  const map = {};
-  return new Promise(resolve => {
-    store.openCursor().onsuccess = e => {
-      const c = e.target.result;
-      if (c) {
-        map[c.key] = URL.createObjectURL(c.value);
-        c.continue();
-      } else resolve(map);
-    };
-  });
-}
-
-function clearImages() {
-  indexedDB.deleteDatabase(DB_NAME);
-}
-
-/**************************************************
- * GLOBAL STATE
- **************************************************/
-let APP_STAGE = localStorage.getItem("APP_STAGE") || "LINK";
 let MASTER_SHEET_URL = localStorage.getItem("MASTER_SHEET_URL");
 let GOOGLE_SHEET_CSV = localStorage.getItem("GOOGLE_SHEET_CSV");
-
-let imageMap = {};
-let slides = [];
-let slideIndex = Number(localStorage.getItem("SLIDE_INDEX") || 0);
-let slideTimer = null;
+let APP_STAGE = localStorage.getItem("APP_STAGE") || "LINK";
 
 /**************************************************
  * CONFIG
  **************************************************/
 const IMAGE_DURATION = 5;
 const IMAGES_BEFORE_TABLE = 5;
+const ROWS_PER_PAGE = 10;
+const ROW_HIGHLIGHT_DURATION = 1;
+
+/**************************************************
+ * STATE
+ **************************************************/
+let slides = [];
+let slideIndex = 0;
+let slideTimer = null;
+let paused = false;
+
+let tablePages = [];
+let tablePageIndex = 0;
+let rowIndex = 0;
+let rowTimer = null;
+
+/* BID FLICKER */
+let bidFlickerTimer = null;
+let bidFlickerState = false;
+
+/* LOCAL IMAGES */
+let imageMap = {}; // { A001: blobURL }
 
 /**************************************************
  * DOM
  **************************************************/
-const stage = document.querySelector(".stage");
 const app = document.getElementById("app");
+const stage = document.querySelector(".stage");
 const counter = document.getElementById("counter");
 
 const linkButtons = document.getElementById("linkButtons");
@@ -74,115 +47,157 @@ const linkDataBtn = document.getElementById("linkDataBtn");
 const openSheetBtn = document.getElementById("openSheetBtn");
 const startAuctionBtn = document.getElementById("startAuctionBtn");
 
+/* NEW: IMAGE FOLDER PICKER */
+const imagePickerInput = document.createElement("input");
+imagePickerInput.type = "file";
+imagePickerInput.webkitdirectory = true;
+imagePickerInput.multiple = true;
+imagePickerInput.style.display = "none";
+document.body.appendChild(imagePickerInput);
+
+const selectImagesBtn = document.createElement("button");
+selectImagesBtn.textContent = "🖼 Select Image Folder";
+selectImagesBtn.className = "btn secondary";
+selectImagesBtn.style.marginRight = "12px";
+
+const pauseBtn = document.getElementById("pauseBtn");
+const resumeBtn = document.getElementById("resumeBtn");
+const refreshBtn = document.getElementById("refreshBtn");
+const prevBtn = document.getElementById("prevBtn");
+const nextBtn = document.getElementById("nextBtn");
+
 const warningModal = document.getElementById("warningModal");
 const warningOkBtn = document.getElementById("warningOkBtn");
 const linkConfirmBtn = document.getElementById("linkConfirmBtn");
 const sheetLinkInput = document.getElementById("sheetLinkInput");
 
 /**************************************************
- * IMAGE PICKER
- **************************************************/
-const picker = document.createElement("input");
-picker.type = "file";
-picker.webkitdirectory = true;
-picker.multiple = true;
-picker.style.display = "none";
-document.body.appendChild(picker);
-
-const uploadBtn = document.createElement("button");
-uploadBtn.className = "btn primary";
-uploadBtn.textContent = "🖼 Upload Images (Required)";
-
-/**************************************************
  * BACK BUTTON
  **************************************************/
 const backBtn = document.createElement("button");
-backBtn.className = "btn secondary";
 backBtn.textContent = "⬅ Back";
-
-backBtn.onclick = () => {
-  localStorage.clear();
-  clearImages();
-  location.reload();
-};
+backBtn.className = "btn secondary";
+backBtn.style.marginRight = "12px";
 
 /**************************************************
  * INIT UI
  **************************************************/
-async function initUI() {
+function initUI() {
   linkButtons.style.display = "none";
   actionButtons.style.display = "none";
   app.style.display = "none";
 
-  uploadBtn.remove();
   backBtn.remove();
-
-  imageMap = await loadImages();
+  selectImagesBtn.remove();
 
   if (APP_STAGE === "LINK") {
     linkButtons.style.display = "flex";
-    linkButtons.prepend(uploadBtn);
-    linkDataBtn.disabled = Object.keys(imageMap).length === 0;
   }
 
-  if (APP_STAGE === "READY") {
+  if (APP_STAGE === "READY" && MASTER_SHEET_URL && GOOGLE_SHEET_CSV) {
     actionButtons.style.display = "flex";
+    actionButtons.prepend(selectImagesBtn);
     actionButtons.prepend(backBtn);
   }
 
-  if (APP_STAGE === "RUNNING") {
+  if (APP_STAGE === "RUNNING" && GOOGLE_SHEET_CSV) {
     app.style.display = "grid";
     document.querySelector(".topControls").prepend(backBtn);
-    await loadData(true);
+    loadData();
   }
 }
 
 initUI();
 
 /**************************************************
- * IMAGE UPLOAD
+ * BACK ACTION
  **************************************************/
-uploadBtn.onclick = () => picker.click();
-
-picker.onchange = async () => {
-  await saveImages([...picker.files]);
-  imageMap = await loadImages();
-  uploadBtn.textContent = "✅ Images Uploaded";
-  linkDataBtn.disabled = false;
+backBtn.onclick = () => {
+  stopAllTimers();
+  stopBidFlicker();
+  paused = false;
+  APP_STAGE = "LINK";
+  localStorage.setItem("APP_STAGE", "LINK");
+  initUI();
 };
+
+/**************************************************
+ * MODAL
+ **************************************************/
+function showModal() {
+  warningModal.style.display = "flex";
+}
+function hideModal() {
+  warningModal.style.display = "none";
+}
+warningOkBtn.onclick = hideModal;
 
 /**************************************************
  * LINK DATA
  **************************************************/
 linkDataBtn.onclick = () => {
-  if (!Object.keys(imageMap).length) return;
-  warningModal.style.display = "flex";
+  sheetLinkInput.value = MASTER_SHEET_URL || "";
+  showModal();
 };
 
-warningOkBtn.onclick = () => warningModal.style.display = "none";
+linkConfirmBtn.onclick = async () => {
+  const url = sheetLinkInput.value.trim();
+  if (!url.includes("docs.google.com/spreadsheets")) {
+    alert("Invalid Google Sheet link");
+    return;
+  }
 
-linkConfirmBtn.onclick = () => {
-  const m = sheetLinkInput.value.match(/\/d\/([a-zA-Z0-9-_]+)/);
-  if (!m) return alert("Invalid Google Sheet link");
+  const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+  if (!match) {
+    alert("Invalid Google Sheet link");
+    return;
+  }
 
-  MASTER_SHEET_URL = sheetLinkInput.value;
-  GOOGLE_SHEET_CSV =
-    `https://docs.google.com/spreadsheets/d/${m[1]}/export?format=csv`;
+  const sheetId = match[1];
+  const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
 
-  localStorage.setItem("MASTER_SHEET_URL", MASTER_SHEET_URL);
-  localStorage.setItem("GOOGLE_SHEET_CSV", GOOGLE_SHEET_CSV);
+  try {
+    const res = await fetch(csvUrl);
+    if (!res.ok) throw new Error();
+    const text = await res.text();
+    if (!text.trim()) throw new Error();
+  } catch {
+    alert("Sheet is not accessible or CSV export not available");
+    return;
+  }
 
+  MASTER_SHEET_URL = url;
+  GOOGLE_SHEET_CSV = csvUrl;
   APP_STAGE = "READY";
+
+  localStorage.setItem("MASTER_SHEET_URL", url);
+  localStorage.setItem("GOOGLE_SHEET_CSV", csvUrl);
   localStorage.setItem("APP_STAGE", "READY");
 
-  warningModal.style.display = "none";
+  hideModal();
   initUI();
 };
 
 /**************************************************
- * ACTIONS
+ * IMAGE FOLDER PICKER
  **************************************************/
-openSheetBtn.onclick = () => window.open(MASTER_SHEET_URL, "_blank");
+selectImagesBtn.onclick = () => imagePickerInput.click();
+
+imagePickerInput.onchange = () => {
+  imageMap = {};
+  [...imagePickerInput.files].forEach(file => {
+    const name = file.name.split(".")[0];
+    imageMap[name] = URL.createObjectURL(file);
+  });
+  alert("Image folder loaded successfully");
+};
+
+/**************************************************
+ * START ACTIONS
+ **************************************************/
+openSheetBtn.onclick = () => {
+  if (MASTER_SHEET_URL) window.open(MASTER_SHEET_URL, "_blank");
+};
 
 startAuctionBtn.onclick = () => {
   APP_STAGE = "RUNNING";
@@ -190,16 +205,29 @@ startAuctionBtn.onclick = () => {
   initUI();
 };
 
+refreshBtn.onclick = loadData;
+
 /**************************************************
  * LOAD DATA
  **************************************************/
-async function loadData(restore) {
+async function loadData() {
+  stopAllTimers();
+  stopBidFlicker();
+
   const res = await fetch(GOOGLE_SHEET_CSV, { cache: "no-store" });
-  const rows = parseCSV(await res.text())
-    .filter(r => String(r.Status).toLowerCase() === "open");
+  const text = await res.text();
+
+  const rows = parseCSV(text).filter(
+    r => String(r.Status).toLowerCase() === "open"
+  );
 
   slides = buildSlides(rows);
-  if (!restore) slideIndex = 0;
+  slideIndex = 0;
+  paused = false;
+
+  pauseBtn.style.display = "inline-block";
+  resumeBtn.style.display = "none";
+
   playSlide();
 }
 
@@ -208,42 +236,146 @@ async function loadData(restore) {
  **************************************************/
 function buildSlides(rows) {
   const out = [];
-  let c = 0;
+  let count = 0;
+
   for (const r of rows) {
-    out.push({ type: "item", record: r, image: imageMap[r.Item] });
-    c++;
-    if (c % IMAGES_BEFORE_TABLE === 0) out.push({ type: "table", rows });
+    const image = imageMap[r.Item] || null;
+    out.push({ type: "item", record: r, image });
+    count++;
+
+    if (count % IMAGES_BEFORE_TABLE === 0) {
+      out.push({ type: "table", rows });
+    }
   }
   return out;
 }
 
+/**************************************************
+ * PLAYER
+ **************************************************/
 function playSlide() {
-  clearTimeout(slideTimer);
-  localStorage.setItem("SLIDE_INDEX", slideIndex);
+  stopAllTimers();
+  stopBidFlicker();
+  if (paused) return;
 
-  const s = slides[slideIndex];
-  stage.classList.toggle("table-mode", s.type === "table");
+  const slide = slides[slideIndex];
+  stage.classList.toggle("table-mode", slide.type === "table");
 
-  if (s.type === "item") {
-    renderItem(s);
+  if (slide.type === "item") {
+    renderItem(slide);
+    startBidFlicker();
+    counter.textContent = `IMAGE ${slideIndex + 1}/${slides.length}`;
     slideTimer = setTimeout(nextSlide, IMAGE_DURATION * 1000);
-  } else renderTable(s.rows);
-
-  counter.textContent = `${slideIndex + 1} / ${slides.length}`;
+  } else {
+    playTable(slide.rows);
+  }
 }
 
+/**************************************************
+ * TABLE
+ **************************************************/
+function playTable(rows) {
+  tablePages = [];
+  for (let i = 0; i < rows.length; i += ROWS_PER_PAGE) {
+    tablePages.push(rows.slice(i, i + ROWS_PER_PAGE));
+  }
+  tablePageIndex = 0;
+  playTablePage();
+}
+
+function playTablePage() {
+  rowIndex = 0;
+  drawTablePage();
+  highlightRow();
+
+  rowTimer = setInterval(() => {
+    rowIndex++;
+    if (rowIndex >= ROWS_PER_PAGE) {
+      clearInterval(rowTimer);
+      tablePageIndex++;
+      if (tablePageIndex >= tablePages.length) {
+        nextSlide();
+        return;
+      }
+      playTablePage();
+    }
+    highlightRow();
+  }, ROW_HIGHLIGHT_DURATION * 1000);
+}
+
+/**************************************************
+ * NAVIGATION
+ **************************************************/
 function nextSlide() {
   slideIndex = (slideIndex + 1) % slides.length;
   playSlide();
 }
+function prevSlide() {
+  slideIndex = (slideIndex - 1 + slides.length) % slides.length;
+  playSlide();
+}
+prevBtn.onclick = prevSlide;
+nextBtn.onclick = nextSlide;
 
 /**************************************************
- * RENDER ITEM (IMAGE + INFO PANEL)
+ * CONTROLS
  **************************************************/
+pauseBtn.onclick = () => {
+  paused = true;
+  stopAllTimers();
+  stopBidFlicker();
+  pauseBtn.style.display = "none";
+  resumeBtn.style.display = "inline-block";
+};
+resumeBtn.onclick = () => {
+  paused = false;
+  pauseBtn.style.display = "inline-block";
+  resumeBtn.style.display = "none";
+  playSlide();
+};
+
+/**************************************************
+ * BID FLICKER
+ **************************************************/
+function startBidFlicker() {
+  const bidEl = document.querySelector(".currentBid");
+  if (!bidEl) return;
+
+  bidFlickerState = false;
+  bidEl.style.color = "#22c55e";
+
+  bidFlickerTimer = setInterval(() => {
+    bidFlickerState = !bidFlickerState;
+    bidEl.style.color = bidFlickerState ? "#facc15" : "#22c55e";
+  }, 600);
+}
+function stopBidFlicker() {
+  clearInterval(bidFlickerTimer);
+}
+
+/**************************************************
+ * HELPERS
+ **************************************************/
+function stopAllTimers() {
+  clearTimeout(slideTimer);
+  clearInterval(rowTimer);
+}
+
+function parseCSV(csv) {
+  const lines = csv.trim().split("\n");
+  const headers = lines.shift().split(",");
+  return lines.map(l => {
+    const v = l.split(",");
+    const o = {};
+    headers.forEach((h, i) => (o[h.trim()] = v[i]?.trim() || ""));
+    return o;
+  });
+}
+
 function renderItem(slide) {
   stage.innerHTML = `
     <div class="imageWrapper">
-      <img src="${slide.image}">
+      ${slide.image ? `<img src="${slide.image}">` : `<div class="noImage">Image not found</div>`}
     </div>
     <div class="infoPanel">
       ${Object.entries(slide.record).map(([k,v]) => `
@@ -256,18 +388,16 @@ function renderItem(slide) {
     </div>`;
 }
 
-/**************************************************
- * TABLE
- **************************************************/
-function renderTable(rows) {
+function drawTablePage() {
   stage.innerHTML = `
+    <div class="tableContainer">
+      ${tableHTML(tablePages[tablePageIndex])}
+    </div>`;
+}
+
+function tableHTML(rows) {
+  return `
     <table class="auctionTable">
-      <thead>
-        <tr>
-          <th>Item</th><th>Type</th><th>Base</th>
-          <th>Bid</th><th>Bidder</th><th>Status</th>
-        </tr>
-      </thead>
       <tbody>
         ${rows.map(r => `
           <tr>
@@ -282,16 +412,8 @@ function renderTable(rows) {
     </table>`;
 }
 
-/**************************************************
- * CSV
- **************************************************/
-function parseCSV(csv) {
-  const lines = csv.trim().split("\n");
-  const h = lines.shift().split(",");
-  return lines.map(l => {
-    const v = l.split(",");
-    const o = {};
-    h.forEach((k,i)=>o[k.trim()]=v[i]?.trim()||"");
-    return o;
-  });
+function highlightRow() {
+  const rows = document.querySelectorAll(".auctionTable tbody tr");
+  rows.forEach(r => r.classList.remove("active"));
+  if (rows[rowIndex]) rows[rowIndex].classList.add("active");
 }
