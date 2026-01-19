@@ -178,6 +178,7 @@ confirmSheetBtn.onclick = () => {
 
   sheetModal.style.display = "none";
   startAuctionBtn.disabled = false;
+  document.body.classList.add("sheet-linked");
 };
 
 /**************************************************
@@ -426,4 +427,5 @@ function highlightRow() {
   rows.forEach(r => r.classList.remove("active"));
   if (rows[rowIndex]) rows[rowIndex].classList.add("active");
 }
+
 
