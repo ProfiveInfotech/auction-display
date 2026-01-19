@@ -10,7 +10,7 @@ let APP_STAGE = localStorage.getItem("APP_STAGE") || "LINK";
  **************************************************/
 const IMAGE_DURATION = 5;
 const IMAGES_BEFORE_TABLE = 5;
-const ROWS_PER_PAGE = 15;
+const ROWS_PER_PAGE = 10;
 const ROW_HIGHLIGHT_DURATION = 1;
 
 /**************************************************
@@ -462,6 +462,7 @@ function hardResetApp() {
   indexedDB.deleteDatabase("auction_images_db");
   location.reload();
 }
+
 
 
 
