@@ -208,7 +208,9 @@ body {
   width: 100%;
   height: 100%;
   padding: 12px;
-  overflow: hidden;
+  /* Allow vertical scrolling so the highlighted row can move through records */
+  overflow: auto;
+  scroll-behavior: smooth;
 }
 
 .auctionTable {
@@ -216,23 +218,42 @@ body {
   height: 100%;
   border-collapse: collapse;
   table-layout: fixed;
-  font-size: 0.8rem;
+  /* Slightly larger so it's readable from distance */
+  font-size: 0.95rem;
 }
 
+/* Header – bold, high contrast, separated */
 .auctionTable thead th {
-  color: var(--gold);
-  border-bottom: 1px solid var(--gold);
-  padding: 6px 4px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+
+  color: #0b1220;
+  background: linear-gradient(180deg, #facc15, #eab308);
+  border-bottom: 2px solid rgba(250, 204, 21, 0.95);
+
+  padding: 10px 8px;
   text-align: center;
-  font-weight: 700;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
 }
 
 .auctionTable tbody td {
-  padding: 4px 4px;
+  padding: 8px 8px;
   border-bottom: 1px solid var(--border);
+  border-right: 1px solid rgba(30, 41, 59, 0.6);
   text-align: center;
   color: var(--text);
   white-space: nowrap;
+}
+
+/* Zebra stripes to improve scanability */
+.auctionTable tbody tr:nth-child(odd) {
+  background: rgba(2, 6, 23, 0.35);
+}
+.auctionTable tbody tr:nth-child(even) {
+  background: rgba(15, 23, 42, 0.22);
 }
 /* =========================================================
    TOP BAR BUTTON STYLE FIX (REFRESH / PAUSE / RESUME)
@@ -306,25 +327,34 @@ body {
   width: 100% !important;
   border-collapse: collapse !important;
   table-layout: fixed !important;
-  font-size: 0.8rem !important;
+  /* Keep table readable in table-mode */
+  font-size: 1rem !important;
   background: transparent !important;
   transform: none !important;
 }
 
 /* Header – clean and sharp */
 .stage.table-mode thead th {
-  padding: 6px 4px !important;
-  color: #facc15 !important;
-  font-weight: 700 !important;
-  border-bottom: 1px solid #facc15 !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 5 !important;
+
+  padding: 10px 8px !important;
+  color: #0b1220 !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.6px !important;
+  text-transform: uppercase !important;
   text-align: center !important;
-  background: transparent !important;
+
+  background: linear-gradient(180deg, #facc15, #eab308) !important;
+  border-bottom: 2px solid rgba(250, 204, 21, 0.95) !important;
 }
 
 /* Body cells – dense */
 .stage.table-mode tbody td {
-  padding: 4px 4px !important;
+  padding: 8px 8px !important;
   border-bottom: 1px solid #1e293b !important;
+  border-right: 1px solid rgba(30, 41, 59, 0.6) !important;
   color: #e5e7eb !important;
   text-align: center !important;
   white-space: nowrap !important;
@@ -337,20 +367,19 @@ body {
   box-shadow: none !important;
 }
 
-/* Kill hover, glow, active states */
-.stage.table-mode tbody tr:hover,
-.stage.table-mode tbody tr.active {
-  background: transparent !important;
+/* Kill hover glow only (keep .active highlight visible) */
+.stage.table-mode tbody tr:hover {
+  background: rgba(250, 204, 21, 0.10) !important;
 }
 /* =========================================================
    ALLOW TABLE TO USE FULL VIEWPORT HEIGHT
    ========================================================= */
 
-/* When table is visible, remove stage height restriction */
+/* When table is visible, keep a FIXED holder height so the container can scroll */
 .stage.table-mode {
-  height: auto !important;
-  min-height: calc(100vh - 70px) !important; /* keep top bar */
-  overflow: visible !important;
+  height: calc(100vh - 150px) !important; /* 70 topbar + 80 controls */
+  min-height: 0 !important;
+  overflow: hidden !important;
 }
 
 /* Allow app to grow */
