@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Live Auction</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ===== START SCREEN ===== -->
+<div id="startScreen">
+
+  <div class="startButtons" id="linkButtons">
+    <button id="linkDataBtn" class="btn primary">
+      🔗 Link Your Data
+    </button>
+  </div>
+
+  <div class="startButtons" id="actionButtons" style="display:none;">
+    <button id="openSheetBtn" class="btn secondary">
+      📊 Open Master Data
+    </button>
+
+    <button id="startAuctionBtn" class="btn primary">
+      ▶ Start Auction
+    </button>
+  </div>
+
+</div>
+
+<!-- ===== MAIN APP ===== -->
+<div id="app" style="display:none;">
+  <header class="topbar">
+    <h1 class="liveHeader">
+      <span class="liveIndicator">
+        <span class="liveDot"></span>
+        <span class="liveRing"></span>
+      </span>
+      Live Auction
+    </h1>
+
+    <div class="topControls">
+      <button id="refreshBtn">🔄 Refresh</button>
+      <button id="pauseBtn">⏸ Pause</button>
+      <button id="resumeBtn" style="display:none;">▶ Resume</button>
+    </div>
+  </header>
+
+  <main class="stage"></main>
+
+  <div class="controls">
+    <button id="prevBtn">◀ Prev</button>
+    <button id="nextBtn">Next ▶</button>
+  </div>
+
+  <div id="counter" class="slideCounter"></div>
+</div>
+
+<!-- ===== LINK GOOGLE SHEET MODAL ===== -->
+<div id="warningModal" class="warningOverlay" style="display:none;">
+  <div class="warningBox">
+
+    <div class="warningTitle">🔗 Link Google Sheet</div>
+
+    <div class="warningText">
+      Paste your Google Sheet link below.<br />
+      We will safely extract the Sheet ID.
+    </div>
+
+    <input
+      id="sheetLinkInput"
+      class="sheetInput"
+      type="text"
+      placeholder="https://docs.google.com/spreadsheets/d/..."
+    />
+
+    <div class="modalActions">
+      <button id="linkConfirmBtn" class="btn primary">
+        ✅ Link Data
+      </button>
+      <button id="warningOkBtn" class="btn secondary">
+        Cancel
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
