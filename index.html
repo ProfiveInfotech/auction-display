@@ -4,47 +4,68 @@
 <meta charset="UTF-8">
 <title>Auction Display</title>
 
-<!-- Correct: external CSS -->
-<link rel="stylesheet" href="Styles.css">
+<link rel="stylesheet" href="Style.css">
 </head>
 
 <body>
 
-<!-- Slideshow UI already exists -->
-<div id="topbar">
-    <button onclick="prevSlide()">⏮ Prev</button>
-    <button onclick="togglePause()">⏯ Pause</button>
-    <button onclick="nextSlide()">⏭ Next</button>
-    <button onclick="refresh()">🔄 Refresh</button>
+<!-- ================= LINK STAGE ================= -->
+<div id="linkButtons" class="centerPanel">
+    <h1>Link Your Data</h1>
 
-    <div id="countdown">–</div>
-    <div id="counter">0 / 0</div>
+    <!-- Upload Images button is injected by app.js -->
+    <button id="linkDataBtn" class="btn primary" disabled>
+        🔗 Link Google Sheet
+    </button>
 </div>
 
-<div id="stage"></div>
+<!-- ================= READY STAGE ================= -->
+<div id="actionButtons" class="centerPanel">
+    <h1>Ready to Start</h1>
 
-<!-- Correct: external JS -->
+    <button id="openSheetBtn" class="btn secondary">
+        📄 Open Master Sheet
+    </button>
+
+    <button id="startAuctionBtn" class="btn primary">
+        ▶ Start Auction
+    </button>
+</div>
+
+<!-- ================= RUNNING STAGE ================= -->
+<div id="app">
+    <div class="topControls">
+        <button onclick="prevSlide()">⏮ Prev</button>
+        <button onclick="togglePause()">⏯ Pause</button>
+        <button onclick="nextSlide()">⏭ Next</button>
+        <button onclick="location.reload()">🔄 Refresh</button>
+
+        <div id="counter">0 / 0</div>
+    </div>
+
+    <div class="stage"></div>
+</div>
+
+<!-- ================= WARNING / LINK MODAL ================= -->
+<div id="warningModal" class="modal">
+    <div class="modalBox">
+        <h2>Link Google Sheet</h2>
+
+        <input
+            id="sheetLinkInput"
+            type="text"
+            placeholder="Paste Google Sheet link here"
+        >
+
+        <div class="modalActions">
+            <button id="warningOkBtn" class="btn secondary">Cancel</button>
+            <button id="linkConfirmBtn" class="btn primary">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<!-- ================= SCRIPT ================= -->
 <script src="App.js"></script>
-
-<script>
-/*********************************************************
- * ENTRY GATE — THIS IS THE ONLY REQUIRED CHANGE
- *********************************************************/
-document.addEventListener("DOMContentLoaded", () => {
-
-    // This flag MUST already be set by Link Your Data page
-    const isLinked = localStorage.getItem("AUCTION_DATA_LINKED");
-
-    if (!isLinked) {
-        // HARD redirect — no black screen ever
-        window.location.href = "link.html";
-        return;
-    }
-
-    // If linked, normal auction init continues inside app.js
-});
-</script>
 
 </body>
 </html>
-
