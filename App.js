@@ -103,6 +103,8 @@ const sheetModal = document.getElementById("sheetModal");
 const sheetLinkInput = document.getElementById("sheetLinkInput");
 const confirmSheetBtn = document.getElementById("confirmSheetBtn");
 const cancelSheetBtn = document.getElementById("cancelSheetBtn");
+const setupStage = document.querySelector(".setupStage");
+const actionStage = document.querySelector(".actionStage");
 
 /**************************************************
  * IMAGE PICKER
@@ -434,6 +436,7 @@ function hardResetApp() {
   indexedDB.deleteDatabase("auction_images_db");
   location.reload();
 }
+
 
 
 
