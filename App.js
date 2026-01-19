@@ -1,38 +1,70 @@
 /**************************************************
- * GLOBAL STATE (PERSISTED)
+ * INDEXED DB (IMAGES)
+ **************************************************/
+const DB_NAME = "auction_images";
+const STORE = "images";
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = e => {
+      e.target.result.createObjectStore(STORE);
+    };
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = () => reject();
+  });
+}
+
+async function saveImages(files) {
+  const db = await openDB();
+  const tx = db.transaction(STORE, "readwrite");
+  const store = tx.objectStore(STORE);
+  files.forEach(f => store.put(f, f.name.split(".")[0]));
+}
+
+async function loadImages() {
+  const db = await openDB();
+  const tx = db.transaction(STORE, "readonly");
+  const store = tx.objectStore(STORE);
+  const map = {};
+  return new Promise(resolve => {
+    store.openCursor().onsuccess = e => {
+      const c = e.target.result;
+      if (c) {
+        map[c.key] = URL.createObjectURL(c.value);
+        c.continue();
+      } else resolve(map);
+    };
+  });
+}
+
+function clearImages() {
+  indexedDB.deleteDatabase(DB_NAME);
+}
+
+/**************************************************
+ * GLOBAL STATE
  **************************************************/
 let APP_STAGE = localStorage.getItem("APP_STAGE") || "LINK";
 let MASTER_SHEET_URL = localStorage.getItem("MASTER_SHEET_URL");
 let GOOGLE_SHEET_CSV = localStorage.getItem("GOOGLE_SHEET_CSV");
+
+let imageMap = {};
+let slides = [];
+let slideIndex = Number(localStorage.getItem("SLIDE_INDEX") || 0);
+let slideTimer = null;
 
 /**************************************************
  * CONFIG
  **************************************************/
 const IMAGE_DURATION = 5;
 const IMAGES_BEFORE_TABLE = 5;
-const ROWS_PER_PAGE = 10;
-const ROW_HIGHLIGHT_DURATION = 1;
-
-/**************************************************
- * RUNTIME STATE
- **************************************************/
-let slides = [];
-let slideIndex = Number(localStorage.getItem("SLIDE_INDEX") || 0);
-let slideTimer = null;
-let paused = false;
-
-let tablePages = [];
-let rowIndex = 0;
-let rowTimer = null;
-
-let imageMap = {};
-let imagesUploaded = false;
 
 /**************************************************
  * DOM
  **************************************************/
-const app = document.getElementById("app");
 const stage = document.querySelector(".stage");
+const app = document.getElementById("app");
 const counter = document.getElementById("counter");
 
 const linkButtons = document.getElementById("linkButtons");
@@ -42,12 +74,6 @@ const linkDataBtn = document.getElementById("linkDataBtn");
 const openSheetBtn = document.getElementById("openSheetBtn");
 const startAuctionBtn = document.getElementById("startAuctionBtn");
 
-const pauseBtn = document.getElementById("pauseBtn");
-const resumeBtn = document.getElementById("resumeBtn");
-const refreshBtn = document.getElementById("refreshBtn");
-const prevBtn = document.getElementById("prevBtn");
-const nextBtn = document.getElementById("nextBtn");
-
 const warningModal = document.getElementById("warningModal");
 const warningOkBtn = document.getElementById("warningOkBtn");
 const linkConfirmBtn = document.getElementById("linkConfirmBtn");
@@ -56,45 +82,47 @@ const sheetLinkInput = document.getElementById("sheetLinkInput");
 /**************************************************
  * IMAGE PICKER
  **************************************************/
-const imagePickerInput = document.createElement("input");
-imagePickerInput.type = "file";
-imagePickerInput.webkitdirectory = true;
-imagePickerInput.multiple = true;
-imagePickerInput.style.display = "none";
-document.body.appendChild(imagePickerInput);
+const picker = document.createElement("input");
+picker.type = "file";
+picker.webkitdirectory = true;
+picker.multiple = true;
+picker.style.display = "none";
+document.body.appendChild(picker);
 
-const uploadImagesBtn = document.createElement("button");
-uploadImagesBtn.textContent = "🖼 Upload Images (Required)";
-uploadImagesBtn.className = "btn primary";
+const uploadBtn = document.createElement("button");
+uploadBtn.className = "btn primary";
+uploadBtn.textContent = "🖼 Upload Images (Required)";
 
 /**************************************************
- * BACK BUTTON (EXPLICIT RESET)
+ * BACK BUTTON
  **************************************************/
 const backBtn = document.createElement("button");
-backBtn.textContent = "⬅ Back";
 backBtn.className = "btn secondary";
+backBtn.textContent = "⬅ Back";
 
 backBtn.onclick = () => {
-  stopAllTimers();
   localStorage.clear();
+  clearImages();
   location.reload();
 };
 
 /**************************************************
  * INIT UI
  **************************************************/
-function initUI() {
+async function initUI() {
   linkButtons.style.display = "none";
   actionButtons.style.display = "none";
   app.style.display = "none";
 
-  uploadImagesBtn.remove();
+  uploadBtn.remove();
   backBtn.remove();
+
+  imageMap = await loadImages();
 
   if (APP_STAGE === "LINK") {
     linkButtons.style.display = "flex";
-    linkButtons.prepend(uploadImagesBtn);
-    linkDataBtn.disabled = !imagesUploaded;
+    linkButtons.prepend(uploadBtn);
+    linkDataBtn.disabled = Object.keys(imageMap).length === 0;
   }
 
   if (APP_STAGE === "READY") {
@@ -105,44 +133,41 @@ function initUI() {
   if (APP_STAGE === "RUNNING") {
     app.style.display = "grid";
     document.querySelector(".topControls").prepend(backBtn);
-    loadData(true);
+    await loadData(true);
   }
 }
 
 initUI();
 
 /**************************************************
- * IMAGE UPLOAD (MANDATORY)
+ * IMAGE UPLOAD
  **************************************************/
-uploadImagesBtn.onclick = () => imagePickerInput.click();
+uploadBtn.onclick = () => picker.click();
 
-imagePickerInput.onchange = () => {
-  imageMap = {};
-  [...imagePickerInput.files].forEach(file => {
-    const key = file.name.split(".")[0];
-    imageMap[key] = URL.createObjectURL(file);
-  });
-  imagesUploaded = true;
+picker.onchange = async () => {
+  await saveImages([...picker.files]);
+  imageMap = await loadImages();
+  uploadBtn.textContent = "✅ Images Uploaded";
   linkDataBtn.disabled = false;
-  uploadImagesBtn.textContent = "✅ Images Uploaded";
 };
 
 /**************************************************
  * LINK DATA
  **************************************************/
 linkDataBtn.onclick = () => {
-  if (!imagesUploaded) return;
+  if (!Object.keys(imageMap).length) return;
   warningModal.style.display = "flex";
 };
 
 warningOkBtn.onclick = () => warningModal.style.display = "none";
 
 linkConfirmBtn.onclick = () => {
-  const match = sheetLinkInput.value.match(/\/d\/([a-zA-Z0-9-_]+)/);
-  if (!match) return alert("Invalid Google Sheet link");
+  const m = sheetLinkInput.value.match(/\/d\/([a-zA-Z0-9-_]+)/);
+  if (!m) return alert("Invalid Google Sheet link");
 
   MASTER_SHEET_URL = sheetLinkInput.value;
-  GOOGLE_SHEET_CSV = `https://docs.google.com/spreadsheets/d/${match[1]}/export?format=csv`;
+  GOOGLE_SHEET_CSV =
+    `https://docs.google.com/spreadsheets/d/${m[1]}/export?format=csv`;
 
   localStorage.setItem("MASTER_SHEET_URL", MASTER_SHEET_URL);
   localStorage.setItem("GOOGLE_SHEET_CSV", GOOGLE_SHEET_CSV);
@@ -165,22 +190,16 @@ startAuctionBtn.onclick = () => {
   initUI();
 };
 
-refreshBtn.onclick = () => loadData(false);
-
 /**************************************************
  * LOAD DATA
  **************************************************/
-async function loadData(restore = false) {
-  stopAllTimers();
-
+async function loadData(restore) {
   const res = await fetch(GOOGLE_SHEET_CSV, { cache: "no-store" });
-  const rows = parseCSV(await res.text()).filter(
-    r => String(r.Status).toLowerCase() === "open"
-  );
+  const rows = parseCSV(await res.text())
+    .filter(r => String(r.Status).toLowerCase() === "open");
 
   slides = buildSlides(rows);
   if (!restore) slideIndex = 0;
-
   playSlide();
 }
 
@@ -189,30 +208,26 @@ async function loadData(restore = false) {
  **************************************************/
 function buildSlides(rows) {
   const out = [];
-  let count = 0;
-
+  let c = 0;
   for (const r of rows) {
     out.push({ type: "item", record: r, image: imageMap[r.Item] });
-    count++;
-    if (count % IMAGES_BEFORE_TABLE === 0) out.push({ type: "table", rows });
+    c++;
+    if (c % IMAGES_BEFORE_TABLE === 0) out.push({ type: "table", rows });
   }
   return out;
 }
 
 function playSlide() {
-  stopAllTimers();
-
+  clearTimeout(slideTimer);
   localStorage.setItem("SLIDE_INDEX", slideIndex);
 
-  const slide = slides[slideIndex];
-  stage.classList.toggle("table-mode", slide.type === "table");
+  const s = slides[slideIndex];
+  stage.classList.toggle("table-mode", s.type === "table");
 
-  if (slide.type === "item") {
-    renderItem(slide);
+  if (s.type === "item") {
+    renderItem(s);
     slideTimer = setTimeout(nextSlide, IMAGE_DURATION * 1000);
-  } else {
-    playTable(slide.rows);
-  }
+  } else renderTable(s.rows);
 
   counter.textContent = `${slideIndex + 1} / ${slides.length}`;
 }
@@ -222,47 +237,35 @@ function nextSlide() {
   playSlide();
 }
 
-prevBtn.onclick = () => {
-  slideIndex = (slideIndex - 1 + slides.length) % slides.length;
-  playSlide();
-};
-nextBtn.onclick = nextSlide;
-
 /**************************************************
- * IMAGE + INFO PANEL (RESTORED)
+ * RENDER ITEM (IMAGE + INFO PANEL)
  **************************************************/
 function renderItem(slide) {
   stage.innerHTML = `
     <div class="imageWrapper">
-      ${slide.image ? `<img src="${slide.image}">` : `<div class="noImage">No Image</div>`}
+      <img src="${slide.image}">
     </div>
     <div class="infoPanel">
-      ${Object.entries(slide.record).map(([k, v]) => `
+      ${Object.entries(slide.record).map(([k,v]) => `
         <div class="block">
           <div class="label">${k}</div>
-          <div class="value ${k.toLowerCase() === "current bid" ? "currentBid" : ""}">
+          <div class="value ${k.toLowerCase()==="current bid"?"currentBid":""}">
             ${v || "-"}
           </div>
-        </div>
-      `).join("")}
-    </div>
-  `;
+        </div>`).join("")}
+    </div>`;
 }
 
 /**************************************************
  * TABLE
  **************************************************/
-function playTable(rows) {
+function renderTable(rows) {
   stage.innerHTML = `
     <table class="auctionTable">
       <thead>
         <tr>
-          <th>Item</th>
-          <th>Type</th>
-          <th>Base Price</th>
-          <th>Current Bid</th>
-          <th>Bidder</th>
-          <th>Status</th>
+          <th>Item</th><th>Type</th><th>Base</th>
+          <th>Bid</th><th>Bidder</th><th>Status</th>
         </tr>
       </thead>
       <tbody>
@@ -274,28 +277,21 @@ function playTable(rows) {
             <td>${r["Current Bid"]}</td>
             <td>${r["Name of Bidder"]}</td>
             <td>${r.Status}</td>
-          </tr>
-        `).join("")}
+          </tr>`).join("")}
       </tbody>
-    </table>
-  `;
+    </table>`;
 }
 
 /**************************************************
- * HELPERS
+ * CSV
  **************************************************/
-function stopAllTimers() {
-  clearTimeout(slideTimer);
-  clearInterval(rowTimer);
-}
-
 function parseCSV(csv) {
   const lines = csv.trim().split("\n");
-  const headers = lines.shift().split(",");
-  return lines.map(line => {
-    const values = line.split(",");
-    const obj = {};
-    headers.forEach((h, i) => obj[h.trim()] = values[i]?.trim() || "");
-    return obj;
+  const h = lines.shift().split(",");
+  return lines.map(l => {
+    const v = l.split(",");
+    const o = {};
+    h.forEach((k,i)=>o[k.trim()]=v[i]?.trim()||"");
+    return o;
   });
 }
