@@ -4,7 +4,6 @@
 let MASTER_SHEET_URL = localStorage.getItem("MASTER_SHEET_URL");
 let GOOGLE_SHEET_CSV = localStorage.getItem("GOOGLE_SHEET_CSV");
 let APP_STAGE = localStorage.getItem("APP_STAGE") || "LINK";
-document.body.classList.remove("sheet-linked");
 
 /**************************************************
  * CONFIG
@@ -216,10 +215,11 @@ backBtn.onclick = () => {
   APP_STAGE = "LINK";
   localStorage.setItem("APP_STAGE", "LINK");
   initUI();
+  showSetupStage();
 };
 
 refreshBtn.onclick = loadData;
-showSetupStage();
+
 
 
 /**************************************************
@@ -454,6 +454,7 @@ function hardResetApp() {
   indexedDB.deleteDatabase("auction_images_db");
   location.reload();
 }
+
 
 
 
