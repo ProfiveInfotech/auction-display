@@ -1,16 +1,22 @@
 /**************************************************
- * HARD RESET TO SETUP MODE (FRESH START)
- **************************************************/
-if (APP_STAGE !== "RUNNING") {
-  document.body.classList.remove("sheet-linked");
-}
-
-/**************************************************
  * GOOGLE SHEET (DYNAMIC — FROM LINK YOUR DATA)
  **************************************************/
 let MASTER_SHEET_URL = localStorage.getItem("MASTER_SHEET_URL");
 let GOOGLE_SHEET_CSV = localStorage.getItem("GOOGLE_SHEET_CSV");
 let APP_STAGE = localStorage.getItem("APP_STAGE") || "LINK";
+/**************************************************
+ * UI STAGE DECISION (SINGLE SOURCE OF TRUTH)
+ **************************************************/
+const HAS_IMAGES = localStorage.getItem("IMAGES_UPLOADED") === "1";
+const HAS_SHEET = Boolean(localStorage.getItem("GOOGLE_SHEET_CSV"));
+
+if (APP_STAGE !== "RUNNING") {
+  if (HAS_IMAGES && HAS_SHEET) {
+    document.body.classList.add("sheet-linked");
+  } else {
+    document.body.classList.remove("sheet-linked");
+  }
+}
 
 /**************************************************
  * CONFIG
@@ -440,6 +446,7 @@ function hardResetApp() {
   indexedDB.deleteDatabase("auction_images_db");
   location.reload();
 }
+
 
 
 
