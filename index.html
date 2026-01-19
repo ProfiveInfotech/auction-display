@@ -9,15 +9,23 @@
 <body>
 
 <!-- ===== START / SETUP SCREEN ===== -->
-<div id="startScreen">
+<div id="startScreen" class="startScreen">
 
-  <div class="startButtons" id="setupButtons">
+  <!-- STEP 1: Upload + Link -->
+  <div class="startButtons setupStage" id="setupButtons">
     <button id="uploadImagesBtn" class="btn secondary">
       🖼 Upload Images
     </button>
 
     <button id="linkDataBtn" class="btn secondary" disabled>
       🔗 Link Google Sheet
+    </button>
+  </div>
+
+  <!-- STEP 2: After Confirm -->
+  <div class="startButtons actionStage" id="actionButtons">
+    <button class="btn secondary" onclick="window.open(localStorage.getItem('MASTER_SHEET_URL'), '_blank')">
+      📄 Open Master Data
     </button>
 
     <button id="startAuctionBtn" class="btn primary" disabled>
