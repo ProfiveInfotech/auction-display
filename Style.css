@@ -581,3 +581,37 @@ body {
   gap: 16px;
   justify-content: center;
 }
+/* =====================================================
+   START SCREEN — FIXED CENTER LAYOUT
+   ===================================================== */
+
+.startScreen {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at top, #020617, #000);
+  z-index: 1000;
+}
+
+/* Common button row */
+.startButtons {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+}
+
+/* Hide action stage by default */
+.actionStage {
+  display: none;
+}
+
+/* When sheet is linked → show action stage */
+body.sheet-linked .setupStage {
+  display: none;
+}
+
+body.sheet-linked .actionStage {
+  display: flex;
+}
+
