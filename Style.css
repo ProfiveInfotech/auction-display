@@ -463,19 +463,6 @@ body {
    LINK YOUR DATA — START SCREEN
    ===================================================== */
 
-/* Center the start buttons container */
-#linkButtons,
-#actionButtons {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-  background: radial-gradient(circle at top, #020617, #000);
-  z-index: 1000;
-}
-
 /* Primary Link Button */
 #linkDataBtn {
   min-width: 260px;
@@ -614,4 +601,5 @@ body.sheet-linked .setupStage {
 body.sheet-linked .actionStage {
   display: flex;
 }
+
 
